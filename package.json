@@ -10,11 +10,28 @@
     "test": "jest"
   },
   "dependencies": {
+    "@babel/runtime": "^7.28.4",
     "@nucypher/taco-mobile": "file:../nucypher-core/nucypher-core-mobile/react-native",
+    "@react-native-async-storage/async-storage": "^1.24.0",
     "@react-native/new-app-screen": "0.82.1",
-    "react": "19.1.1",
+    "@tanstack/react-query": "^5.90.6",
+    "@walletconnect/modal-react-native": "^1.1.0",
+    "@walletconnect/react-native-compat": "^2.23.0",
+    "buffer": "^6.0.3",
+    "crypto-browserify": "^3.12.1",
+    "ethers": "^5.7.2",
+    "react": "^19.1.1",
     "react-native": "0.82.1",
-    "react-native-safe-area-context": "^5.5.2"
+    "react-native-document-picker": "^9.3.1",
+    "react-native-fs": "^2.20.0",
+    "react-native-get-random-values": "^2.0.0",
+    "react-native-safe-area-context": "^5.5.2",
+    "react-native-toast-message": "^2.3.3",
+    "react-native-url-polyfill": "^3.0.0",
+    "react-native-vector-icons": "^10.3.0",
+    "stream-browserify": "^3.0.0",
+    "viem": "^2.38.6",
+    "wagmi": "^2.19.2"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
