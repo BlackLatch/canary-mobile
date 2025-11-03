@@ -8,14 +8,17 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../contexts/ThemeContext';
 import Icon from 'react-native-vector-icons/Feather';
 import { useDossier } from '../contexts/DossierContext';
 import { useNavigation } from '@react-navigation/native';
+import { MediaRecorder } from '../components/MediaRecorder';
 
 type ReleaseMode = 'public' | 'contacts';
+type RecordingMode = 'voice' | 'video' | null;
 
 const INTERVAL_PRESETS = [
   { label: '1 Hour', value: '60', display: '1H' },
@@ -47,6 +50,8 @@ export const CreateDossierScreen = () => {
 
   // Step 4: File Encryption (simplified for now)
   const [hasAcceptedTerms, setHasAcceptedTerms] = useState(false);
+  const [recordingMode, setRecordingMode] = useState<RecordingMode>(null);
+  const [uploadedFiles, setUploadedFiles] = useState<Array<{ uri: string; name: string; type: string; size: number }>>([]);
 
   // Generate random name
   const generateRandomName = () => {
@@ -58,6 +63,18 @@ export const CreateDossierScreen = () => {
     const randomNum = Math.floor(Math.random() * 9999).toString().padStart(4, '0');
 
     setName(`${randomAdj} ${randomNoun} ${randomNum}`);
+  };
+
+  // Handle recorded file
+  const handleFileReady = (file: { uri: string; name: string; type: string; size: number }) => {
+    setUploadedFiles(prev => [...prev, file]);
+    setRecordingMode(null);
+    Alert.alert('Success', `${file.name} has been added to your dossier`);
+  };
+
+  // Remove uploaded file
+  const handleRemoveFile = (index: number) => {
+    setUploadedFiles(prev => prev.filter((_, i) => i !== index));
   };
 
   // Validation
@@ -532,26 +549,60 @@ export const CreateDossierScreen = () => {
           </TouchableOpacity>
         </View>
       ) : (
-        <View style={[styles.card, { backgroundColor: theme.colors.card }]}>
-          <Text style={[styles.label, { color: theme.colors.text }]}>
-            File Upload
-          </Text>
-          <TouchableOpacity
-            style={[styles.uploadButton, { borderColor: theme.colors.border }]}
-          >
-            <Icon name="upload" size={24} color={theme.colors.primary} />
-            <Text style={[styles.uploadButtonText, { color: theme.colors.text }]}>
-              Choose Files
+        <>
+          <View style={[styles.card, { backgroundColor: theme.colors.card }]}>
+            <Text style={[styles.label, { color: theme.colors.text }]}>
+              Record Media
             </Text>
-            <Text style={[styles.uploadButtonHint, { color: theme.colors.textSecondary }]}>
-              Up to 100MB per file
-            </Text>
-          </TouchableOpacity>
+            <View style={styles.recordingButtons}>
+              <TouchableOpacity
+                style={[styles.recordButton, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
+                onPress={() => setRecordingMode('voice')}
+              >
+                <Icon name="mic" size={24} color={theme.colors.primary} />
+                <Text style={[styles.recordButtonText, { color: theme.colors.text }]}>
+                  Voice Recording
+                </Text>
+              </TouchableOpacity>
 
-          <Text style={[styles.comingSoonText, { color: theme.colors.textSecondary }]}>
-            File upload functionality coming soon...
-          </Text>
-        </View>
+              <TouchableOpacity
+                style={[styles.recordButton, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
+                onPress={() => setRecordingMode('video')}
+              >
+                <Icon name="video" size={24} color={theme.colors.primary} />
+                <Text style={[styles.recordButtonText, { color: theme.colors.text }]}>
+                  Video Recording
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {uploadedFiles.length > 0 && (
+            <View style={[styles.card, { backgroundColor: theme.colors.card }]}>
+              <Text style={[styles.label, { color: theme.colors.text }]}>
+                Uploaded Files ({uploadedFiles.length})
+              </Text>
+              {uploadedFiles.map((file, index) => (
+                <View key={index} style={[styles.fileRow, { borderTopColor: theme.colors.border }]}>
+                  <Icon
+                    name={file.type.startsWith('video') ? 'video' : 'music'}
+                    size={20}
+                    color={theme.colors.primary}
+                  />
+                  <View style={styles.fileInfo}>
+                    <Text style={[styles.fileName, { color: theme.colors.text }]}>{file.name}</Text>
+                    <Text style={[styles.fileSize, { color: theme.colors.textSecondary }]}>
+                      {(file.size / 1024 / 1024).toFixed(2)} MB
+                    </Text>
+                  </View>
+                  <TouchableOpacity onPress={() => handleRemoveFile(index)}>
+                    <Icon name="trash-2" size={20} color="#EF4444" />
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+          )}
+        </>
       )}
 
       <View style={[styles.infoCard, { backgroundColor: theme.colors.card }]}>
@@ -694,6 +745,22 @@ export const CreateDossierScreen = () => {
           )}
         </TouchableOpacity>
       </View>
+
+      {/* Media Recorder Modal */}
+      <Modal
+        visible={recordingMode !== null}
+        animationType="slide"
+        presentationStyle="fullScreen"
+        onRequestClose={() => setRecordingMode(null)}
+      >
+        {recordingMode && (
+          <MediaRecorder
+            mode={recordingMode}
+            onFileReady={handleFileReady}
+            onClose={() => setRecordingMode(null)}
+          />
+        )}
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -1021,5 +1088,41 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
+  },
+  // Recording styles
+  recordingButtons: {
+    gap: 12,
+    marginTop: 12,
+  },
+  recordButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    gap: 12,
+  },
+  recordButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  fileRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingTop: 12,
+    marginTop: 12,
+    borderTopWidth: 1,
+    gap: 12,
+  },
+  fileInfo: {
+    flex: 1,
+  },
+  fileName: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  fileSize: {
+    fontSize: 12,
   },
 });

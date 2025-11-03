@@ -35,6 +35,10 @@
 	</dict>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string></string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Canary needs access to your microphone to record voice messages for your dossier.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Canary needs access to your camera to record video messages for your dossier.</string>
 	<key>RCTNewArchEnabled</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>
