@@ -206,14 +206,18 @@ export const CreateDossierScreen = () => {
 
       const intervalSeconds = intervalMinutes * 60;
 
-      const result = await createDossier({
-        name: name.trim(),
-        description: description.trim(),
-        releaseMode,
-        emergencyContacts: emergencyContacts.filter(c => c.trim().length > 0),
-        checkInInterval: intervalSeconds,
-        files: [], // TODO: Add file support
-      });
+      // Prepare recipients based on release mode
+      const recipients = releaseMode === 'contacts'
+        ? emergencyContacts.filter(c => c.trim().length > 0) as `0x${string}`[]
+        : [];
+
+      const result = await createDossier(
+        name.trim(),
+        description.trim(),
+        BigInt(intervalSeconds),
+        recipients,
+        uploadedFiles
+      );
 
       if (result.success) {
         Alert.alert(
