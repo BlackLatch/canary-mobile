@@ -304,6 +304,16 @@ export const MediaRecorder: React.FC<MediaRecorderProps> = ({ mode, onFileReady,
               : 'Tap play to continue, or stop to finish'}
           </Text>
         )}
+
+        <TouchableOpacity
+          style={[styles.cancelButton, { borderColor: theme.colors.border }]}
+          onPress={onClose}
+        >
+          <Icon name="x" size={20} color={theme.colors.text} />
+          <Text style={[styles.cancelButtonText, { color: theme.colors.text }]}>
+            Cancel Recording
+          </Text>
+        </TouchableOpacity>
       </View>
     );
   };
@@ -402,6 +412,21 @@ const styles = StyleSheet.create({
     marginTop: 24,
     fontSize: 14,
     textAlign: 'center',
+  },
+  cancelButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 32,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  cancelButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
   },
   stoppedControls: {
     flex: 1,
