@@ -1,15 +1,18 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import Icon from 'react-native-vector-icons/Feather';
 import { useTheme } from '../contexts/ThemeContext';
 import { CheckInScreen } from '../screens/CheckInScreen';
 import { DossiersScreen } from '../screens/DossiersScreen';
 import { MonitorScreen } from '../screens/MonitorScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
+import { CreateDossierScreen } from '../screens/CreateDossierScreen';
 
 const Tab = createBottomTabNavigator();
+const Stack = createNativeStackNavigator();
 
-export const AppNavigator = () => {
+const TabNavigator = () => {
   const { theme } = useTheme();
 
   return (
@@ -75,5 +78,24 @@ export const AppNavigator = () => {
         }}
       />
     </Tab.Navigator>
+  );
+};
+
+export const AppNavigator = () => {
+  return (
+    <Stack.Navigator
+      screenOptions={{
+        headerShown: false,
+      }}
+    >
+      <Stack.Screen name="Tabs" component={TabNavigator} />
+      <Stack.Screen
+        name="CreateDossier"
+        component={CreateDossierScreen}
+        options={{
+          presentation: 'modal',
+        }}
+      />
+    </Stack.Navigator>
   );
 };

@@ -8,12 +8,14 @@ import {
   RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
 import { useDossier } from '../contexts/DossierContext';
 import { useWallet } from '../contexts/WalletContext';
 import { useTheme } from '../contexts/ThemeContext';
 import type { Dossier } from '../types/dossier';
 
 export const DossiersScreen = () => {
+  const navigation = useNavigation();
   const { address } = useWallet();
   const { dossiers, isLoading, refreshDossiers } = useDossier();
   const { theme } = useTheme();
@@ -103,7 +105,10 @@ export const DossiersScreen = () => {
         }
       />
 
-      <TouchableOpacity style={[styles.fab, { backgroundColor: theme.colors.primary }]}>
+      <TouchableOpacity
+        style={[styles.fab, { backgroundColor: theme.colors.primary }]}
+        onPress={() => navigation.navigate('CreateDossier' as never)}
+      >
         <Text style={styles.fabText}>+</Text>
       </TouchableOpacity>
     </SafeAreaView>
