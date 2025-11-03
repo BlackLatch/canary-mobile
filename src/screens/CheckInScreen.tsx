@@ -16,11 +16,13 @@ import {
 } from 'react-native';
 import { useWallet } from '../contexts/WalletContext';
 import { useDossier } from '../contexts/DossierContext';
+import { useTheme } from '../contexts/ThemeContext';
 import type { Dossier } from '../types/dossier';
 
 export const CheckInScreen: React.FC = () => {
   const { address, isConnected, connectBurnerWallet } = useWallet();
   const { dossiers, isLoading, loadDossiers, checkIn, checkInAll } = useDossier();
+  const { theme } = useTheme();
 
   useEffect(() => {
     // Auto-connect burner wallet on mount if not connected
@@ -62,16 +64,16 @@ export const CheckInScreen: React.FC = () => {
     if (isLoading) {
       return (
         <View style={styles.emptyContainer}>
-          <ActivityIndicator size="large" color="#E53935" />
-          <Text style={styles.emptyText}>Loading dossiers...</Text>
+          <ActivityIndicator size="large" color={theme.colors.primary} />
+          <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>Loading dossiers...</Text>
         </View>
       );
     }
 
     return (
       <View style={styles.emptyContainer}>
-        <Text style={styles.emptyTitle}>No Dossiers</Text>
-        <Text style={styles.emptyText}>Create your first dossier to get started</Text>
+        <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>No Dossiers</Text>
+        <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>Create your first dossier to get started</Text>
       </View>
     );
   };
@@ -97,9 +99,9 @@ export const CheckInScreen: React.FC = () => {
     };
 
     return (
-      <View style={styles.dossierCard}>
+      <View style={[styles.dossierCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
         <View style={styles.dossierHeader}>
-          <Text style={styles.dossierName}>{item.name}</Text>
+          <Text style={[styles.dossierName, { color: theme.colors.text }]}>{item.name}</Text>
           <View
             style={[
               styles.statusBadge,
@@ -113,38 +115,38 @@ export const CheckInScreen: React.FC = () => {
         </View>
 
         {item.description && (
-          <Text style={styles.dossierDescription} numberOfLines={2}>
+          <Text style={[styles.dossierDescription, { color: theme.colors.textSecondary }]} numberOfLines={2}>
             {item.description}
           </Text>
         )}
 
         <View style={styles.dossierInfo}>
-          <Text style={styles.infoLabel}>Files:</Text>
-          <Text style={styles.infoValue}>{item.encryptedFileHashes.length}</Text>
+          <Text style={[styles.infoLabel, { color: theme.colors.textSecondary }]}>Files:</Text>
+          <Text style={[styles.infoValue, { color: theme.colors.text }]}>{item.encryptedFileHashes.length}</Text>
         </View>
 
         <View style={styles.dossierInfo}>
-          <Text style={styles.infoLabel}>Recipients:</Text>
-          <Text style={styles.infoValue}>{item.recipients.length}</Text>
+          <Text style={[styles.infoLabel, { color: theme.colors.textSecondary }]}>Recipients:</Text>
+          <Text style={[styles.infoValue, { color: theme.colors.text }]}>{item.recipients.length}</Text>
         </View>
 
         <View style={styles.dossierInfo}>
-          <Text style={styles.infoLabel}>Check-in interval:</Text>
-          <Text style={styles.infoValue}>{formatTime(interval)}</Text>
+          <Text style={[styles.infoLabel, { color: theme.colors.textSecondary }]}>Check-in interval:</Text>
+          <Text style={[styles.infoValue, { color: theme.colors.text }]}>{formatTime(interval)}</Text>
         </View>
 
         <View style={styles.dossierInfo}>
-          <Text style={styles.infoLabel}>
+          <Text style={[styles.infoLabel, { color: theme.colors.textSecondary }]}>
             {isOverdue ? 'Overdue by:' : 'Next check-in in:'}
           </Text>
-          <Text style={[styles.infoValue, isOverdue && styles.overdueText]}>
+          <Text style={[styles.infoValue, { color: theme.colors.text }, isOverdue && styles.overdueText]}>
             {formatTime(timeUntilDue)}
           </Text>
         </View>
 
         {item.isActive && (
           <TouchableOpacity
-            style={[styles.checkInButton, isOverdue && styles.checkInButtonUrgent]}
+            style={[styles.checkInButton, { backgroundColor: theme.colors.primary }, isOverdue && styles.checkInButtonUrgent]}
             onPress={() => handleCheckIn(item.id)}>
             <Text style={styles.checkInButtonText}>Check In</Text>
           </TouchableOpacity>
@@ -156,29 +158,29 @@ export const CheckInScreen: React.FC = () => {
   // If not connected, show connection screen
   if (!isConnected) {
     return (
-      <View style={styles.container}>
+      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
         <View style={styles.connectContainer}>
-          <Text style={styles.connectTitle}>Canary</Text>
-          <Text style={styles.connectSubtitle}>Connecting wallet...</Text>
-          <ActivityIndicator size="large" color="#E53935" style={styles.connectLoader} />
+          <Text style={[styles.connectTitle, { color: theme.colors.primary }]}>Canary</Text>
+          <Text style={[styles.connectSubtitle, { color: theme.colors.textSecondary }]}>Connecting wallet...</Text>
+          <ActivityIndicator size="large" color={theme.colors.primary} style={styles.connectLoader} />
         </View>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>My Dossiers</Text>
-        <Text style={styles.headerAddress}>
+      <View style={[styles.header, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.border }]}>
+        <Text style={[styles.headerTitle, { color: theme.colors.text }]}>My Dossiers</Text>
+        <Text style={[styles.headerAddress, { color: theme.colors.textSecondary }]}>
           {address?.slice(0, 6)}...{address?.slice(-4)}
         </Text>
       </View>
 
       {/* Check-in all button */}
       {dossiers.length > 0 && (
-        <TouchableOpacity style={styles.checkInAllButton} onPress={handleCheckInAll}>
+        <TouchableOpacity style={[styles.checkInAllButton, { backgroundColor: theme.colors.primary }]} onPress={handleCheckInAll}>
           <Text style={styles.checkInAllButtonText}>Check In to All</Text>
         </TouchableOpacity>
       )}
@@ -190,7 +192,7 @@ export const CheckInScreen: React.FC = () => {
         keyExtractor={(item) => item.id.toString()}
         contentContainerStyle={styles.listContent}
         refreshControl={
-          <RefreshControl refreshing={isLoading} onRefresh={loadDossiers} colors={['#E53935']} />
+          <RefreshControl refreshing={isLoading} onRefresh={loadDossiers} colors={[theme.colors.primary]} />
         }
         ListEmptyComponent={renderEmptyState}
       />

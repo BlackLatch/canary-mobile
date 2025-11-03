@@ -3,25 +3,23 @@
  */
 
 import React from 'react';
-import {
-  StatusBar,
-  useColorScheme,
-} from 'react-native';
+import { StatusBar } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
+import { ThemeProvider, useTheme } from './src/contexts/ThemeContext';
 import { WalletProvider } from './src/contexts/WalletContext';
 import { DossierProvider } from './src/contexts/DossierContext';
 import { AuthenticatedApp } from './src/components/AuthenticatedApp';
 
 console.log('App.tsx: Starting to load');
 
-function App() {
+function AppContent() {
   console.log('App: Rendering');
-  const isDarkMode = useColorScheme() === 'dark';
+  const { theme } = useTheme();
 
   return (
     <SafeAreaProvider>
-      <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
+      <StatusBar barStyle={theme.isDark ? 'light-content' : 'dark-content'} />
       <WalletProvider>
         <DossierProvider>
           <AuthenticatedApp />
@@ -29,6 +27,14 @@ function App() {
       </WalletProvider>
       <Toast />
     </SafeAreaProvider>
+  );
+}
+
+function App() {
+  return (
+    <ThemeProvider>
+      <AppContent />
+    </ThemeProvider>
   );
 }
 

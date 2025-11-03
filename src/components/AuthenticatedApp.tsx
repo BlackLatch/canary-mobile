@@ -1,8 +1,9 @@
 import React from 'react';
 import { ActivityIndicator, View, StyleSheet } from 'react-native';
+import { NavigationContainer } from '@react-navigation/native';
 import { useWallet } from '../contexts/WalletContext';
 import { LoginScreen } from '../screens/LoginScreen';
-import { CheckInScreen } from '../screens/CheckInScreen';
+import { AppNavigator } from '../navigation/AppNavigator';
 
 export const AuthenticatedApp = () => {
   const { address, isLoading } = useWallet();
@@ -20,8 +21,12 @@ export const AuthenticatedApp = () => {
     return <LoginScreen />;
   }
 
-  // Show main app if wallet is connected
-  return <CheckInScreen />;
+  // Show main app with navigation if wallet is connected
+  return (
+    <NavigationContainer>
+      <AppNavigator />
+    </NavigationContainer>
+  );
 };
 
 const styles = StyleSheet.create({
