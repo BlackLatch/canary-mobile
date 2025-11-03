@@ -30,9 +30,14 @@ export const DossiersScreen = () => {
   };
 
   const renderDossierItem = ({ item }: { item: Dossier }) => (
-    <TouchableOpacity style={[styles.dossierCard, { backgroundColor: theme.colors.card }]}>
+    <TouchableOpacity
+      style={[styles.dossierCard, { backgroundColor: theme.colors.card }]}
+      onPress={() => navigation.navigate('DossierDetail' as never, { dossier: item } as never)}
+    >
       <View style={styles.cardHeader}>
-        <Text style={[styles.dossierTitle, { color: theme.colors.text }]}>Dossier #{item.id.toString()}</Text>
+        <Text style={[styles.dossierTitle, { color: theme.colors.text }]}>
+          {item.metadata?.name || `Dossier #${item.id.toString()}`}
+        </Text>
         <View style={[
           styles.statusBadge,
           item.isActive ? styles.statusActive : styles.statusInactive

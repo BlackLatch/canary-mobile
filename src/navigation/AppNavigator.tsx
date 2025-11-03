@@ -8,6 +8,7 @@ import { DossiersScreen } from '../screens/DossiersScreen';
 import { MonitorScreen } from '../screens/MonitorScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
 import { CreateDossierScreen } from '../screens/CreateDossierScreen';
+import { DossierDetailScreen } from '../screens/DossierDetailScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -94,6 +95,13 @@ export const AppNavigator = () => {
         component={CreateDossierScreen}
         options={{
           presentation: 'modal',
+        }}
+      />
+      <Stack.Screen
+        name="DossierDetail"
+        component={DossierDetailScreen}
+        options={{
+          presentation: 'card',
         }}
       />
     </Stack.Navigator>

@@ -35,6 +35,7 @@ interface DossierContextState {
 
   // Dossier operations
   loadDossiers: () => Promise<void>;
+  refreshDossiers: () => Promise<void>;
   createDossier: (
     name: string,
     description: string,
@@ -46,6 +47,7 @@ interface DossierContextState {
   checkInAll: () => Promise<OperationResult>;
   pauseDossier: (dossierId: bigint) => Promise<OperationResult>;
   resumeDossier: (dossierId: bigint) => Promise<OperationResult>;
+  updateSchedule: (dossierId: bigint, newInterval: bigint) => Promise<OperationResult>;
   releaseNow: (dossierId: bigint) => Promise<OperationResult>;
   permanentlyDisable: (dossierId: bigint) => Promise<OperationResult>;
 
@@ -386,6 +388,36 @@ export const DossierProvider: React.FC<DossierProviderProps> = ({ children }) =>
   };
 
   /**
+   * Update check-in schedule for a dossier
+   */
+  const updateSchedule = async (dossierId: bigint, newInterval: bigint): Promise<OperationResult> => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      const signer = await getSigner();
+      if (!signer) {
+        return { success: false, error: 'Failed to get signer' };
+      }
+
+      const result = await contractService.updateCheckInInterval(dossierId, newInterval, signer);
+
+      if (result.success) {
+        await loadDossiers();
+        return { success: true };
+      } else {
+        return { success: false, error: result.error };
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to update schedule';
+      setError(errorMessage);
+      return { success: false, error: errorMessage };
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  /**
    * Select a dossier for viewing/editing
    */
   const selectDossier = (dossier: Dossier | null) => {
@@ -407,11 +439,13 @@ export const DossierProvider: React.FC<DossierProviderProps> = ({ children }) =>
     isLoading,
     error,
     loadDossiers,
+    refreshDossiers: loadDossiers,
     createDossier,
     checkIn,
     checkInAll,
     pauseDossier,
     resumeDossier,
+    updateSchedule,
     releaseNow,
     permanentlyDisable,
     selectedDossier,
