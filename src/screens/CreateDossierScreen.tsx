@@ -16,6 +16,7 @@ import Icon from 'react-native-vector-icons/Feather';
 import { useDossier } from '../contexts/DossierContext';
 import { useNavigation } from '@react-navigation/native';
 import { MediaRecorder } from '../components/MediaRecorder';
+import DocumentPicker from 'react-native-document-picker';
 
 type ReleaseMode = 'public' | 'contacts';
 type RecordingMode = 'voice' | 'video' | null;
@@ -75,6 +76,50 @@ export const CreateDossierScreen = () => {
   // Remove uploaded file
   const handleRemoveFile = (index: number) => {
     setUploadedFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // Handle file selection
+  const handlePickFiles = async () => {
+    try {
+      const results = await DocumentPicker.pick({
+        allowMultiSelection: true,
+        type: [DocumentPicker.types.allFiles],
+      });
+
+      const newFiles = results.map(file => ({
+        uri: file.uri,
+        name: file.name || 'Unknown',
+        type: file.type || 'application/octet-stream',
+        size: file.size || 0,
+      }));
+
+      setUploadedFiles(prev => [...prev, ...newFiles]);
+
+      if (results.length === 1) {
+        Alert.alert('Success', `${results[0].name} has been added to your dossier`);
+      } else {
+        Alert.alert('Success', `${results.length} files have been added to your dossier`);
+      }
+    } catch (err) {
+      if (DocumentPicker.isCancel(err)) {
+        // User cancelled the picker
+        console.log('User cancelled file picker');
+      } else {
+        console.error('Error picking files:', err);
+        Alert.alert('Error', 'Failed to select files');
+      }
+    }
+  };
+
+  // Get icon name for file type
+  const getFileIcon = (mimeType: string): string => {
+    if (mimeType.startsWith('video/')) return 'video';
+    if (mimeType.startsWith('audio/')) return 'music';
+    if (mimeType.startsWith('image/')) return 'image';
+    if (mimeType.includes('pdf')) return 'file-text';
+    if (mimeType.includes('document') || mimeType.includes('word')) return 'file-text';
+    if (mimeType.includes('spreadsheet') || mimeType.includes('excel')) return 'file-text';
+    return 'file';
   };
 
   // Validation
@@ -577,6 +622,21 @@ export const CreateDossierScreen = () => {
             </View>
           </View>
 
+          <View style={[styles.card, { backgroundColor: theme.colors.card }]}>
+            <Text style={[styles.label, { color: theme.colors.text }]}>
+              Upload Files
+            </Text>
+            <TouchableOpacity
+              style={[styles.recordButton, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
+              onPress={handlePickFiles}
+            >
+              <Icon name="file-plus" size={24} color={theme.colors.primary} />
+              <Text style={[styles.recordButtonText, { color: theme.colors.text }]}>
+                Choose Files
+              </Text>
+            </TouchableOpacity>
+          </View>
+
           {uploadedFiles.length > 0 && (
             <View style={[styles.card, { backgroundColor: theme.colors.card }]}>
               <Text style={[styles.label, { color: theme.colors.text }]}>
@@ -585,7 +645,7 @@ export const CreateDossierScreen = () => {
               {uploadedFiles.map((file, index) => (
                 <View key={index} style={[styles.fileRow, { borderTopColor: theme.colors.border }]}>
                   <Icon
-                    name={file.type.startsWith('video') ? 'video' : 'music'}
+                    name={getFileIcon(file.type)}
                     size={20}
                     color={theme.colors.primary}
                   />
