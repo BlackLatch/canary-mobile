@@ -27,6 +27,7 @@ export const CheckInScreen: React.FC = () => {
   const { dossiers, isLoading, loadDossiers, checkInAll } = useDossier();
   const { theme } = useTheme();
   const [isCheckingIn, setIsCheckingIn] = useState(false);
+  const [checkInSuccess, setCheckInSuccess] = useState(false);
   const [systemEnabled, setSystemEnabled] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
 
@@ -139,10 +140,14 @@ export const CheckInScreen: React.FC = () => {
    */
   const handleCheckIn = async () => {
     setIsCheckingIn(true);
+    setCheckInSuccess(false);
     try {
       const result = await checkInAll();
       if (result.success) {
         console.log('✅ Check-in all successful');
+        setCheckInSuccess(true);
+        // Reset success message after 3 seconds
+        setTimeout(() => setCheckInSuccess(false), 3000);
       } else {
         console.error('❌ Check-in all failed:', result.error);
       }
@@ -187,8 +192,8 @@ export const CheckInScreen: React.FC = () => {
         refreshControl={
           <RefreshControl refreshing={isLoading} onRefresh={loadDossiers} colors={[theme.colors.primary]} />
         }>
-        {isLoading ? (
-          // Loading State
+        {isLoading && dossiers.length === 0 ? (
+          // Initial Loading State (only show when no dossiers loaded yet)
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={theme.colors.primary} />
             <Text style={[styles.loadingText, { color: theme.colors.textSecondary }]}>Loading system status...</Text>
@@ -232,8 +237,15 @@ export const CheckInScreen: React.FC = () => {
                       color={systemEnabled && activeDossierCount > 0 ? theme.colors.text : theme.colors.border}
                     />
                   </TouchableOpacity>
-                  <Text style={[styles.checkInButtonText, { color: theme.colors.textSecondary, marginTop: 16 }]}>
-                    {isCheckingIn ? 'CHECKING IN...' : 'TAP TO CHECK IN'}
+                  <Text
+                    style={[
+                      styles.checkInButtonText,
+                      {
+                        color: checkInSuccess ? theme.colors.success : theme.colors.textSecondary,
+                        marginTop: 16
+                      }
+                    ]}>
+                    {checkInSuccess ? 'SUCCESSFULLY CHECKED IN ✓' : isCheckingIn ? 'CHECKING IN...' : 'TAP TO CHECK IN'}
                   </Text>
                 </View>
               </View>
