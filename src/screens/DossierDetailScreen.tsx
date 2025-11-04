@@ -18,7 +18,7 @@ import RNFS from 'react-native-fs';
 import { useTheme } from '../contexts/ThemeContext';
 import { useDossier } from '../contexts/DossierContext';
 import { retrieveFromPinata } from '../lib/pinata';
-import { tacoService } from '../lib/tacoMobile';
+import { decryptFile } from '../lib/tacoMobile';
 import type { Dossier } from '../types/dossier';
 
 type DossierDetailRouteProp = {
@@ -95,8 +95,8 @@ export const DossierDetailScreen = () => {
 
     // Check if expired
     const now = Math.floor(Date.now() / 1000);
-    const timeSinceLastCheckIn = now - (dossier.lastCheckIn || dossier.createdAt);
-    if (timeSinceLastCheckIn > dossier.checkInFrequency) {
+    const timeSinceLastCheckIn = now - Number(dossier.lastCheckIn || 0);
+    if (timeSinceLastCheckIn > Number(dossier.checkInInterval)) {
       return { text: 'Expired', color: '#F59E0B', bgColor: '#FEF3C7' };
     }
 
@@ -161,9 +161,9 @@ export const DossierDetailScreen = () => {
     const intervalSeconds = intervalMinutes * 60;
 
     try {
-      const result = await updateSchedule(dossier.id, intervalSeconds);
+      const result = await updateSchedule(dossier.id, BigInt(intervalSeconds));
       if (result.success) {
-        setDossier({ ...dossier, checkInFrequency: intervalSeconds });
+        setDossier({ ...dossier, checkInInterval: BigInt(intervalSeconds) });
         setShowEditSchedule(false);
         showSuccess('Check-in schedule updated');
       } else {
@@ -249,32 +249,17 @@ export const DossierDetailScreen = () => {
 
           console.log(`✅ Downloaded ${encryptedData.length} bytes from IPFS`);
 
-          // Try to decrypt the file
-          try {
-            console.log('🔓 Attempting decryption...');
-            const decryptedData = await tacoService.decryptFile(encryptedData);
+          // Decrypt the file using TACo
+          console.log('🔓 Attempting decryption...');
+          const decryptedData = await decryptFile(encryptedData);
+          console.log(`✅ Decryption successful! ${decryptedData.length} bytes`);
 
-            // Save decrypted file
-            const decryptedPath = `${dossierDir}/file_${i + 1}_decrypted.bin`;
-            await RNFS.writeFile(decryptedPath, Buffer.from(decryptedData).toString('base64'), 'base64');
+          // Save decrypted file
+          const decryptedPath = `${dossierDir}/file_${i + 1}_decrypted.bin`;
+          await RNFS.writeFile(decryptedPath, Buffer.from(decryptedData).toString('base64'), 'base64');
 
-            console.log(`✅ Decrypted and saved file to: ${decryptedPath}`);
-            successCount++;
-          } catch (decryptError: any) {
-            // If decryption fails due to taco-mobile limitation, save encrypted file instead
-            if (decryptError?.message?.includes('taco-mobile API extension')) {
-              console.log('⚠️ Decryption not yet supported by taco-mobile, saving encrypted file...');
-
-              const encryptedPath = `${dossierDir}/file_${i + 1}_encrypted.bin`;
-              await RNFS.writeFile(encryptedPath, Buffer.from(encryptedData).toString('base64'), 'base64');
-
-              console.log(`📦 Saved encrypted file to: ${encryptedPath}`);
-              errors.push(`File ${i + 1}: Decryption not yet available - saved encrypted version`);
-              successCount++; // Count as success since we saved the file
-            } else {
-              throw decryptError;
-            }
-          }
+          console.log(`💾 Saved decrypted file to: ${decryptedPath}`);
+          successCount++;
         } catch (error: any) {
           console.error(`❌ Failed to process file ${i + 1}:`, error);
           errors.push(`File ${i + 1}: ${error.message || 'Unknown error'}`);
@@ -286,9 +271,7 @@ export const DossierDetailScreen = () => {
       if (successCount > 0 && failCount === 0 && errors.length === 0) {
         showSuccess(`Successfully downloaded and decrypted ${successCount} file(s) to ${dossierDir}`);
       } else if (successCount > 0 && errors.length > 0) {
-        const message = errors.length === dossier.encryptedFileHashes.length
-          ? `Downloaded ${successCount} encrypted file(s) to ${dossierDir}\n\nNote: Decryption requires taco-mobile library update. Files are saved in encrypted format for now.`
-          : `Downloaded ${successCount} file(s) to ${dossierDir}\n\nPartial results:\n${errors.slice(0, 3).join('\n')}`;
+        const message = `Downloaded and decrypted ${successCount} file(s) to ${dossierDir}\n\nPartial results:\n${errors.slice(0, 3).join('\n')}`;
         showSuccess(message);
       } else if (successCount > 0) {
         showSuccess(`Downloaded ${successCount} file(s) to ${dossierDir}. ${failCount} failed.`);
@@ -373,14 +356,14 @@ export const DossierDetailScreen = () => {
             <View style={styles.timingItem}>
               <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Check-in Interval</Text>
               <Text style={[styles.value, { color: theme.colors.text }]}>
-                {formatInterval(dossier.checkInFrequency)}
+                {formatInterval(Number(dossier.checkInInterval))}
               </Text>
             </View>
 
             <View style={styles.timingItem}>
               <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Last Check-In</Text>
               <Text style={[styles.value, { color: theme.colors.text }]}>
-                {dossier.lastCheckIn ? formatDate(dossier.lastCheckIn) : 'Never'}
+                {dossier.lastCheckIn ? formatDate(Number(dossier.lastCheckIn)) : 'Never'}
               </Text>
             </View>
           </View>

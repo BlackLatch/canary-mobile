@@ -14,9 +14,10 @@ import { DOSSIER_V2_ADDRESS } from '../constants/contracts';
 import { STATUS_SEPOLIA } from '../constants/networks';
 import type { DeadmanCondition, EncryptionResult, FileInfo, TraceJson } from '../types/dossier';
 import { uploadToPinata, type PinataUploadResult } from './pinata';
+import { Buffer } from 'buffer';
 
 // Porter API endpoints
-const PORTER_BASE_URL = 'https://porter-tapir.nucypher.community';
+const PORTER_BASE_URL = 'https://porter-tapir.nucypher.io';
 
 /**
  * Porter API types
@@ -116,18 +117,58 @@ class TacoMobileService {
   }
 
   /**
-   * Fetch ritual information from Porter
+   * Fetch ritual information from Coordinator contract on Polygon Amoy
    */
   private async fetchRitualInfo(ritualId: number): Promise<DkgRitualResponse> {
-    const response = await fetch(
-      `${PORTER_BASE_URL}/rituals/${ritualId}`
-    );
+    console.log(`🔗 Fetching ritual info from Coordinator contract for ritual ${ritualId}...`);
 
-    if (!response.ok) {
-      throw new Error(`Failed to fetch ritual info: ${response.statusText}`);
+    // Connect to Polygon Amoy where TACo infrastructure exists
+    const provider = new ethers.providers.JsonRpcProvider('https://rpc-amoy.polygon.technology/');
+
+    // Coordinator contract address on Polygon Amoy (tapir domain)
+    const coordinatorAddress = '0xE690b6bCC0616Dc5294fF84ff4e00335cA52C388';
+
+    // ABI with rituals() and getParticipants()
+    const coordinatorAbi = [
+      'function rituals(uint256 index) view returns (address initiator, uint32 initTimestamp, uint32 endTimestamp, uint16 totalTranscripts, uint16 totalAggregations, address authority, uint16 dkgSize, uint16 threshold, bool aggregationMismatch, address accessController, tuple(bytes32 word0, bytes16 word1) publicKey, bytes aggregatedTranscript, address feeModel)',
+      'function getParticipants(uint32 ritualId) view returns (tuple(address provider, bool aggregated, bytes transcript, bytes decryptionRequestStaticKey)[])',
+    ];
+
+    const coordinator = new ethers.Contract(coordinatorAddress, coordinatorAbi, provider);
+
+    try {
+      // Fetch ritual data and participants from contract
+      console.log('📋 Fetching ritual data and participants from contract...');
+      const [ritual, participants] = await Promise.all([
+        coordinator.rituals(ritualId),
+        coordinator.getParticipants(ritualId)
+      ]);
+
+      console.log(`✅ Ritual ${ritualId}: threshold=${ritual.threshold}, participants=${participants.length}`);
+
+      // Extract participant info
+      const dkgParticipants: DkgParticipant[] = participants.map((p: any) => ({
+        provider: p.provider,
+        decryption_request_static_key: ethers.utils.hexlify(p.decryptionRequestStaticKey),
+      }));
+
+      console.log(`✅ Using ${dkgParticipants.length} participants from contract`);
+
+      // Combine word0 (32 bytes) and word1 (16 bytes) to get the full 48-byte BLS12-381 G1 point
+      const word0 = ethers.utils.arrayify(ritual.publicKey.word0);
+      const word1 = ethers.utils.arrayify(ritual.publicKey.word1);
+      const publicKeyBytes = new Uint8Array([...word0, ...word1]);
+
+      return {
+        participants: dkgParticipants,
+        threshold: ritual.threshold,
+        dkg_public_key: ethers.utils.hexlify(publicKeyBytes),
+        ritual_id: ritualId,
+      };
+    } catch (error) {
+      console.error('❌ Failed to fetch ritual info:', error);
+      throw new Error(`Failed to fetch ritual info: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
-
-    return await response.json();
   }
 
   /**
@@ -278,7 +319,7 @@ class TacoMobileService {
   }
 
   /**
-   * Request decryption shares from Ursulas via Porter
+   * Request decryption shares from Ursulas via Porter's /decrypt endpoint
    * This is a helper for the full decryption workflow
    */
   private async requestDecryptionShares(
@@ -287,53 +328,92 @@ class TacoMobileService {
     threshold: number,
     messageKitBytes: Uint8Array
   ): Promise<Uint8Array[]> {
-    console.log(`📨 Requesting decryption shares from ${participants.length} Ursulas...`);
+    console.log(`📨 Creating encrypted requests for ${participants.length} Ursulas...`);
 
-    const shares: Uint8Array[] = [];
+    // Create encrypted decryption requests for all participants
+    // Porter expects a mapping from provider address to encrypted request
+    const encryptedRequests: Record<string, string> = {};
 
     for (const participant of participants) {
       try {
-        // Create encrypted request for this Ursula
         const ursulaPublicKey = hexToBytes(participant.decryption_request_static_key);
         const encryptedRequest = await request.createEncryptedRequestForUrsula(ursulaPublicKey);
-
-        // Submit to Ursula via Porter
-        const response = await fetch(
-          `${PORTER_BASE_URL}/retrieve_cfrags`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              ritual_id: RITUAL_ID,
-              encrypted_request: bytesToHex(encryptedRequest),
-              message_kit: bytesToHex(messageKitBytes),
-            }),
-          }
-        );
-
-        if (!response.ok) {
-          console.warn(`⚠️ Ursula ${participant.provider} failed: ${response.statusText}`);
-          continue;
-        }
-
-        const data: UrsulaDecryptResponse = await response.json();
-
-        // Decrypt Ursula's response
-        const encryptedResponse = hexToBytes(data.decryption_share);
-        const share = await request.decryptUrsulaResponse(encryptedResponse, ursulaPublicKey);
-
-        shares.push(share);
-        console.log(`✅ Got share ${shares.length}/${threshold} from ${participant.provider}`);
-
-        // Stop once we have enough shares
-        if (shares.length >= threshold) {
-          break;
-        }
+        // Porter expects base64-encoded encrypted requests
+        encryptedRequests[participant.provider] = Buffer.from(encryptedRequest).toString('base64');
+        console.log(`✅ Created encrypted request for ${participant.provider}`);
       } catch (error) {
-        console.warn(`⚠️ Error requesting from ${participant.provider}:`, error);
-        continue;
+        console.warn(`⚠️ Failed to create request for ${participant.provider}:`, error);
+      }
+    }
+
+    if (Object.keys(encryptedRequests).length === 0) {
+      throw new Error('Failed to create any encrypted requests');
+    }
+
+    // Send all requests to Porter's /decrypt endpoint
+    console.log(`📨 Sending ${Object.keys(encryptedRequests).length} encrypted requests to Porter...`);
+
+    const requestBody = {
+      threshold: threshold,
+      encrypted_decryption_requests: encryptedRequests,
+    };
+    console.log(`📦 Request body type check:`, {
+      isArray: Array.isArray(encryptedRequests),
+      isObject: typeof encryptedRequests === 'object',
+      keys: Object.keys(encryptedRequests),
+      sample: JSON.stringify(requestBody).substring(0, 200)
+    });
+
+    // Add timeout to fetch request (300 seconds / 5 minutes)
+    const fetchWithTimeout = (url: string, options: any, timeout = 300000) => {
+      return Promise.race([
+        fetch(url, options),
+        new Promise<Response>((_, reject) =>
+          setTimeout(() => reject(new Error('Request timeout after 5 minutes')), timeout)
+        )
+      ]);
+    };
+
+    console.log(`⏳ Waiting for Porter response (this may take a few minutes)...`);
+    const response = await fetchWithTimeout(
+      `${PORTER_BASE_URL}/decrypt`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      }
+    );
+
+    console.log(`📥 Porter responded with status: ${response.status}`);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.log(`❌ Porter error response: ${errorText}`);
+      throw new Error(`Porter decrypt failed: ${response.statusText} - ${errorText}`);
+    }
+
+    const data = await response.json();
+    console.log(`✅ Porter returned decryption response:`, JSON.stringify(data).substring(0, 200));
+
+    // Decrypt the responses from each Ursula
+    const shares: Uint8Array[] = [];
+
+    // Porter returns encrypted responses that we need to decrypt
+    if (data.encrypted_decryption_responses) {
+      for (let i = 0; i < data.encrypted_decryption_responses.length && i < participants.length; i++) {
+        try {
+          const encryptedResponseHex = data.encrypted_decryption_responses[i];
+          const encryptedResponse = hexToBytes(encryptedResponseHex);
+          const ursulaPublicKey = hexToBytes(participants[i].decryption_request_static_key);
+
+          const share = await request.decryptUrsulaResponse(encryptedResponse, ursulaPublicKey);
+          shares.push(share);
+          console.log(`✅ Decrypted share ${shares.length}/${threshold}`);
+        } catch (error) {
+          console.warn(`⚠️ Failed to decrypt response ${i}:`, error);
+        }
       }
     }
 
@@ -341,7 +421,7 @@ class TacoMobileService {
       throw new Error(`Failed to collect enough shares: got ${shares.length}, need ${threshold}`);
     }
 
-    return shares;
+    return shares.slice(0, threshold);
   }
 
   /**
