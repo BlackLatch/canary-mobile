@@ -180,18 +180,11 @@ class ContractService {
 
       const contract = this.getContractWithSigner(signer);
 
-      // Estimate gas
-      const gasEstimate = await contract.estimateGas.createDossier(
-        name,
-        description,
-        checkInInterval,
-        recipients,
-        encryptedFileHashes
-      );
+      // Status Network is fully gasless - explicitly set gas to 0
+      console.log('⛽ Using fully gasless transaction (Status Network)');
+      console.log('📋 Recipients:', recipients);
+      console.log('📋 Recipients array:', JSON.stringify(recipients));
 
-      console.log('⛽ Gas estimate:', gasEstimate.toString());
-
-      // Send transaction
       const tx = await contract.createDossier(
         name,
         description,
@@ -199,7 +192,8 @@ class ContractService {
         recipients,
         encryptedFileHashes,
         {
-          gasLimit: gasEstimate.mul(120).div(100), // Add 20% buffer
+          gasLimit: 10000000, // High gas limit for gasless network
+          gasPrice: 0, // Fully gasless - no gas price
         }
       );
 
@@ -241,7 +235,10 @@ class ContractService {
 
       const contract = this.getContractWithSigner(signer);
 
-      const tx = await contract.checkIn(dossierId);
+      const tx = await contract.checkIn(dossierId, {
+        gasLimit: 10000000,
+        gasPrice: 0,
+      });
       console.log('⏳ Transaction sent:', tx.hash);
 
       const receipt = await tx.wait();
@@ -271,7 +268,10 @@ class ContractService {
 
       const contract = this.getContractWithSigner(signer);
 
-      const tx = await contract.checkInAll();
+      const tx = await contract.checkInAll({
+        gasLimit: 10000000,
+        gasPrice: 0,
+      });
       console.log('⏳ Transaction sent:', tx.hash);
 
       const receipt = await tx.wait();
@@ -302,7 +302,10 @@ class ContractService {
 
       const contract = this.getContractWithSigner(signer);
 
-      const tx = await contract.pauseDossier(dossierId);
+      const tx = await contract.pauseDossier(dossierId, {
+        gasLimit: 10000000,
+        gasPrice: 0,
+      });
       console.log('⏳ Transaction sent:', tx.hash);
 
       const receipt = await tx.wait();
@@ -333,7 +336,10 @@ class ContractService {
 
       const contract = this.getContractWithSigner(signer);
 
-      const tx = await contract.resumeDossier(dossierId);
+      const tx = await contract.resumeDossier(dossierId, {
+        gasLimit: 10000000,
+        gasPrice: 0,
+      });
       console.log('⏳ Transaction sent:', tx.hash);
 
       const receipt = await tx.wait();
@@ -364,7 +370,10 @@ class ContractService {
 
       const contract = this.getContractWithSigner(signer);
 
-      const tx = await contract.releaseNow(dossierId);
+      const tx = await contract.releaseNow(dossierId, {
+        gasLimit: 10000000,
+        gasPrice: 0,
+      });
       console.log('⏳ Transaction sent:', tx.hash);
 
       const receipt = await tx.wait();
@@ -395,7 +404,10 @@ class ContractService {
 
       const contract = this.getContractWithSigner(signer);
 
-      const tx = await contract.permanentlyDisableDossier(dossierId);
+      const tx = await contract.permanentlyDisableDossier(dossierId, {
+        gasLimit: 10000000,
+        gasPrice: 0,
+      });
       console.log('⏳ Transaction sent:', tx.hash);
 
       const receipt = await tx.wait();
@@ -407,6 +419,42 @@ class ContractService {
       };
     } catch (error) {
       console.error('❌ Failed to permanently disable dossier:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
+    }
+  }
+
+  /**
+   * Update check-in interval for a dossier
+   */
+  async updateCheckInInterval(
+    dossierId: bigint,
+    newInterval: bigint,
+    signer: ethers.Signer
+  ): Promise<{ success: boolean; txHash?: string; error?: string }> {
+    try {
+      console.log('⏱️ Updating check-in interval for dossier:', dossierId.toString());
+      console.log('⏱️ New interval:', newInterval.toString(), 'seconds');
+
+      const contract = this.getContractWithSigner(signer);
+
+      const tx = await contract.updateCheckInInterval(dossierId, newInterval, {
+        gasLimit: 10000000,
+        gasPrice: 0,
+      });
+      console.log('⏳ Transaction sent:', tx.hash);
+
+      const receipt = await tx.wait();
+      console.log('✅ Check-in interval updated in block:', receipt.blockNumber);
+
+      return {
+        success: true,
+        txHash: receipt.transactionHash,
+      };
+    } catch (error) {
+      console.error('❌ Failed to update check-in interval:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -457,3 +505,6 @@ export const releaseNow = (dossierId: bigint, signer: ethers.Signer) =>
 
 export const permanentlyDisableDossier = (dossierId: bigint, signer: ethers.Signer) =>
   contractService.permanentlyDisableDossier(dossierId, signer);
+
+export const updateCheckInInterval = (dossierId: bigint, newInterval: bigint, signer: ethers.Signer) =>
+  contractService.updateCheckInInterval(dossierId, newInterval, signer);
