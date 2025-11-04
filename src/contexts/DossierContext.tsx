@@ -171,11 +171,15 @@ export const DossierProvider: React.FC<DossierProviderProps> = ({ children }) =>
       // Step 2: Create dossier on-chain with encrypted file hashes
       const encryptedFileHashes = encryptedFiles.map((f) => f.pinataCid);
 
+      // If no recipients specified, add user's own address (public release)
+      const finalRecipients = recipients.length === 0 ? [address] : recipients;
+      console.log('📋 Final recipients:', finalRecipients);
+
       const result = await contractService.createDossier(
         name,
         description,
         checkInInterval,
-        recipients,
+        finalRecipients,
         encryptedFileHashes,
         signer
       );
