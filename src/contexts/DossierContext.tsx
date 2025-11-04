@@ -9,6 +9,7 @@
  */
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import RNFS from 'react-native-fs';
 import { contractService } from '../lib/contract';
 import { encryptFileWithDossier, commitEncryptedFileToPinata } from '../lib/tacoMobile';
 import type { CommitResult } from '../lib/tacoMobile';
@@ -432,10 +433,49 @@ export const DossierProvider: React.FC<DossierProviderProps> = ({ children }) =>
    * Helper: Read file data from URI
    */
   const readFileData = async (file: FileInfo): Promise<Uint8Array> => {
-    // TODO: Implement file reading using react-native-fs
-    // For now, return empty array as placeholder
-    console.warn('⚠️ File reading not yet implemented');
-    return new Uint8Array(0);
+    try {
+      console.log(`📂 Reading file: ${file.name} (${file.size} bytes)`);
+      console.log(`📍 URI: ${file.uri}`);
+
+      let filePath = file.uri;
+
+      // Handle different URI schemes
+      // Android: content:// URIs (from document picker)
+      // iOS: file:// URIs or absolute paths
+      if (filePath.startsWith('content://')) {
+        // Android content URI - use directly with RNFS
+        console.log('📱 Detected Android content URI');
+      } else if (filePath.startsWith('file://')) {
+        // iOS file URI - remove prefix
+        filePath = filePath.substring(7);
+        console.log('🍎 Detected iOS file URI');
+      }
+
+      // For content:// URIs, RNFS handles them directly
+      // For file paths, check if exists first
+      if (!filePath.startsWith('content://')) {
+        const exists = await RNFS.exists(filePath);
+        if (!exists) {
+          throw new Error(`File not found at path: ${filePath}`);
+        }
+      }
+
+      // Read file as base64
+      const base64Data = await RNFS.readFile(filePath, 'base64');
+
+      // Convert base64 to Uint8Array
+      const binaryString = atob(base64Data);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+
+      console.log(`✅ File read successfully: ${bytes.length} bytes`);
+      return bytes;
+    } catch (error) {
+      console.error(`❌ Failed to read file ${file.name}:`, error);
+      throw new Error(`Failed to read file: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   };
 
   const value: DossierContextState = {

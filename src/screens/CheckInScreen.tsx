@@ -4,7 +4,7 @@
  * System-level check-in view matching reference implementation
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -30,6 +30,8 @@ export const CheckInScreen: React.FC = () => {
   const [checkInSuccess, setCheckInSuccess] = useState(false);
   const [systemEnabled, setSystemEnabled] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const scrollViewRef = useRef<ScrollView>(null);
+  const scrollPositionRef = useRef<number>(0);
 
   useEffect(() => {
     // Auto-connect burner wallet on mount if not connected
@@ -148,6 +150,10 @@ export const CheckInScreen: React.FC = () => {
         setCheckInSuccess(true);
         // Reset success message after 3 seconds
         setTimeout(() => setCheckInSuccess(false), 3000);
+        // Restore scroll position after state update
+        setTimeout(() => {
+          scrollViewRef.current?.scrollTo({ y: scrollPositionRef.current, animated: false });
+        }, 100);
       } else {
         console.error('❌ Check-in all failed:', result.error);
       }
@@ -188,10 +194,15 @@ export const CheckInScreen: React.FC = () => {
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <ScrollView
+        ref={scrollViewRef}
         contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + 16 }]}
         refreshControl={
           <RefreshControl refreshing={isLoading} onRefresh={loadDossiers} colors={[theme.colors.primary]} />
-        }>
+        }
+        onScroll={(event) => {
+          scrollPositionRef.current = event.nativeEvent.contentOffset.y;
+        }}
+        scrollEventThrottle={16}>
         {isLoading && dossiers.length === 0 ? (
           // Initial Loading State (only show when no dossiers loaded yet)
           <View style={styles.loadingContainer}>

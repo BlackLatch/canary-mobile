@@ -9,12 +9,16 @@ import {
   TextInput,
   ActivityIndicator,
   Clipboard,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Feather';
+import RNFS from 'react-native-fs';
 import { useTheme } from '../contexts/ThemeContext';
 import { useDossier } from '../contexts/DossierContext';
+import { retrieveFromPinata } from '../lib/pinata';
+import { tacoService } from '../lib/tacoMobile';
 import type { Dossier } from '../types/dossier';
 
 type DossierDetailRouteProp = {
@@ -31,6 +35,7 @@ export const DossierDetailScreen = () => {
 
   const [dossier, setDossier] = useState<Dossier>(route.params.dossier);
   const [isCheckingIn, setIsCheckingIn] = useState(false);
+  const [isDecrypting, setIsDecrypting] = useState(false);
   const [showEditSchedule, setShowEditSchedule] = useState(false);
   const [showReleaseConfirm, setShowReleaseConfirm] = useState(false);
   const [showDisableConfirm, setShowDisableConfirm] = useState(false);
@@ -200,7 +205,102 @@ export const DossierDetailScreen = () => {
   };
 
   const handleDecrypt = async () => {
-    showError('Decryption functionality will be available in a future update');
+    if (!dossier.encryptedFileHashes || dossier.encryptedFileHashes.length === 0) {
+      showError('No encrypted files found in this dossier');
+      return;
+    }
+
+    setIsDecrypting(true);
+    console.log('🔓 Starting decryption process...');
+
+    try {
+      const downloadDir = Platform.OS === 'ios'
+        ? RNFS.DocumentDirectoryPath
+        : RNFS.DownloadDirectoryPath;
+
+      const dossierDir = `${downloadDir}/Canary/Dossier_${dossier.id}`;
+
+      // Create dossier directory if it doesn't exist
+      await RNFS.mkdir(dossierDir, { NSURLIsExcludedFromBackupKey: false });
+      console.log('📁 Created directory:', dossierDir);
+
+      let successCount = 0;
+      let failCount = 0;
+      const errors: string[] = [];
+
+      for (let i = 0; i < dossier.encryptedFileHashes.length; i++) {
+        const ipfsHash = dossier.encryptedFileHashes[i];
+
+        if (!ipfsHash) {
+          console.warn(`⚠️ File ${i + 1} has no IPFS hash`);
+          failCount++;
+          continue;
+        }
+
+        try {
+          console.log(`📥 Downloading file ${i + 1}/${dossier.encryptedFileHashes.length} from IPFS...`);
+
+          // Download encrypted file from IPFS
+          const encryptedData = await retrieveFromPinata(ipfsHash);
+
+          if (!encryptedData) {
+            throw new Error('Failed to download file from IPFS');
+          }
+
+          console.log(`✅ Downloaded ${encryptedData.length} bytes from IPFS`);
+
+          // Try to decrypt the file
+          try {
+            console.log('🔓 Attempting decryption...');
+            const decryptedData = await tacoService.decryptFile(encryptedData);
+
+            // Save decrypted file
+            const decryptedPath = `${dossierDir}/file_${i + 1}_decrypted.bin`;
+            await RNFS.writeFile(decryptedPath, Buffer.from(decryptedData).toString('base64'), 'base64');
+
+            console.log(`✅ Decrypted and saved file to: ${decryptedPath}`);
+            successCount++;
+          } catch (decryptError: any) {
+            // If decryption fails due to taco-mobile limitation, save encrypted file instead
+            if (decryptError?.message?.includes('taco-mobile API extension')) {
+              console.log('⚠️ Decryption not yet supported by taco-mobile, saving encrypted file...');
+
+              const encryptedPath = `${dossierDir}/file_${i + 1}_encrypted.bin`;
+              await RNFS.writeFile(encryptedPath, Buffer.from(encryptedData).toString('base64'), 'base64');
+
+              console.log(`📦 Saved encrypted file to: ${encryptedPath}`);
+              errors.push(`File ${i + 1}: Decryption not yet available - saved encrypted version`);
+              successCount++; // Count as success since we saved the file
+            } else {
+              throw decryptError;
+            }
+          }
+        } catch (error: any) {
+          console.error(`❌ Failed to process file ${i + 1}:`, error);
+          errors.push(`File ${i + 1}: ${error.message || 'Unknown error'}`);
+          failCount++;
+        }
+      }
+
+      // Show results
+      if (successCount > 0 && failCount === 0 && errors.length === 0) {
+        showSuccess(`Successfully downloaded and decrypted ${successCount} file(s) to ${dossierDir}`);
+      } else if (successCount > 0 && errors.length > 0) {
+        const message = errors.length === dossier.encryptedFileHashes.length
+          ? `Downloaded ${successCount} encrypted file(s) to ${dossierDir}\n\nNote: Decryption requires taco-mobile library update. Files are saved in encrypted format for now.`
+          : `Downloaded ${successCount} file(s) to ${dossierDir}\n\nPartial results:\n${errors.slice(0, 3).join('\n')}`;
+        showSuccess(message);
+      } else if (successCount > 0) {
+        showSuccess(`Downloaded ${successCount} file(s) to ${dossierDir}. ${failCount} failed.`);
+      } else {
+        showError(`Failed to download files. ${errors.slice(0, 2).join('\n')}`);
+      }
+    } catch (error: any) {
+      console.error('❌ Decryption process failed:', error);
+      showError(error.message || 'Failed to download and decrypt files');
+    } finally {
+      setIsDecrypting(false);
+    }
   };
 
   const copyToClipboard = (text: string, label: string) => {
@@ -211,7 +311,7 @@ export const DossierDetailScreen = () => {
   const statusInfo = getStatusInfo();
   const canCheckIn = dossier.isActive && !dossier.isReleased && !dossier.isPermanentlyDisabled;
   const canModify = !dossier.isReleased && !dossier.isPermanentlyDisabled;
-  const canDecrypt = dossier.isReleased || (dossier.metadata?.encryptedFiles?.length || 0) > 0;
+  const canDecrypt = dossier.isReleased || (dossier.encryptedFileHashes?.length || 0) > 0;
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
@@ -296,34 +396,46 @@ export const DossierDetailScreen = () => {
         </View>
 
         {/* Encrypted Files */}
-        {dossier.metadata?.encryptedFiles && dossier.metadata.encryptedFiles.length > 0 && (
+        {dossier.encryptedFileHashes && dossier.encryptedFileHashes.length > 0 && (
           <View style={[styles.panel, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
             <Text style={[styles.panelTitle, { color: theme.colors.text }]}>Encrypted Files</Text>
 
-            {dossier.metadata.encryptedFiles.map((file, index) => (
+            {dossier.encryptedFileHashes.map((ipfsHash, index) => (
               <View key={index} style={[styles.fileItem, { borderTopColor: theme.colors.border }]}>
-                <Text style={[styles.fileNumber, { color: theme.colors.text }]}>File #{index + 1}</Text>
+                <View style={styles.fileHeader}>
+                  <Icon name="file" size={16} color={theme.colors.primary} />
+                  <Text style={[styles.fileNumber, { color: theme.colors.text }]}>File #{index + 1}</Text>
+                </View>
                 <Text style={[styles.fileHash, { color: theme.colors.textSecondary }]} numberOfLines={1}>
-                  {file.ipfsHash || file.cid || 'No hash available'}
+                  {ipfsHash}
                 </Text>
-                <TouchableOpacity
-                  style={[styles.copyButton, { borderColor: theme.colors.border }]}
-                  onPress={() => copyToClipboard(file.ipfsHash || file.cid || '', 'File hash')}
-                >
-                  <Icon name="copy" size={14} color={theme.colors.text} />
-                  <Text style={[styles.copyButtonText, { color: theme.colors.text }]}>Copy</Text>
-                </TouchableOpacity>
+                <View style={styles.fileActions}>
+                  <TouchableOpacity
+                    style={[styles.copyButton, { borderColor: theme.colors.border }]}
+                    onPress={() => copyToClipboard(ipfsHash, 'IPFS hash')}
+                  >
+                    <Icon name="copy" size={14} color={theme.colors.text} />
+                    <Text style={[styles.copyButtonText, { color: theme.colors.text }]}>Copy Hash</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.copyButton, { borderColor: theme.colors.border, marginLeft: 8 }]}
+                    onPress={() => copyToClipboard(`https://purple-certain-guan-605.mypinata.cloud/ipfs/${ipfsHash}`, 'IPFS URL')}
+                  >
+                    <Icon name="link" size={14} color={theme.colors.text} />
+                    <Text style={[styles.copyButtonText, { color: theme.colors.text }]}>Copy URL</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             ))}
           </View>
         )}
 
         {/* Recipients */}
-        {dossier.metadata?.recipients && dossier.metadata.recipients.length > 0 && (
+        {dossier.recipients && dossier.recipients.length > 0 && (
           <View style={[styles.panel, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
             <Text style={[styles.panelTitle, { color: theme.colors.text }]}>Recipients</Text>
 
-            {dossier.metadata.recipients.map((recipient, index) => (
+            {dossier.recipients.map((recipient, index) => (
               <View key={index} style={[styles.recipientItem, { borderTopColor: theme.colors.border }]}>
                 <Text style={[styles.recipientNumber, { color: theme.colors.text }]}>Recipient #{index + 1}</Text>
                 <Text style={[styles.recipientAddress, { color: theme.colors.textSecondary }]} numberOfLines={1}>
@@ -365,11 +477,23 @@ export const DossierDetailScreen = () => {
             <TouchableOpacity
               style={[styles.secondaryButton, { borderColor: theme.colors.border }]}
               onPress={handleDecrypt}
+              disabled={isDecrypting}
             >
-              <Icon name="download" size={16} color={theme.colors.text} />
-              <Text style={[styles.secondaryButtonText, { color: theme.colors.text }]}>
-                Download & Decrypt
-              </Text>
+              {isDecrypting ? (
+                <>
+                  <ActivityIndicator size="small" color={theme.colors.text} />
+                  <Text style={[styles.secondaryButtonText, { color: theme.colors.text, marginLeft: 8 }]}>
+                    Downloading...
+                  </Text>
+                </>
+              ) : (
+                <>
+                  <Icon name="download" size={16} color={theme.colors.text} />
+                  <Text style={[styles.secondaryButtonText, { color: theme.colors.text }]}>
+                    Download & Decrypt
+                  </Text>
+                </>
+              )}
             </TouchableOpacity>
           )}
 
@@ -701,15 +825,24 @@ const styles = StyleSheet.create({
     marginTop: 12,
     borderTopWidth: 1,
   },
+  fileHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
   fileNumber: {
     fontSize: 14,
     fontWeight: '600',
-    marginBottom: 4,
+    marginLeft: 8,
   },
   fileHash: {
     fontSize: 12,
     fontFamily: 'Courier',
     marginBottom: 8,
+  },
+  fileActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   recipientItem: {
     paddingTop: 12,

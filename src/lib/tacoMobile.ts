@@ -242,29 +242,35 @@ class TacoMobileService {
     console.log(`📦 MessageKit size: ${messageKitBytes.length} bytes`);
 
     try {
-      // Fetch ritual information
+      // Step 1: Load MessageKit bytes into EncryptedData
+      console.log('📥 Loading MessageKit bytes...');
+      const encryptedData = await EncryptedData.fromMessageKitBytes(messageKitBytes);
+      console.log('✅ MessageKit loaded successfully');
+
+      // Step 2: Fetch ritual information
       console.log(`🔍 Fetching ritual info for ritual ${RITUAL_ID}...`);
       const ritualInfo = await this.fetchRitualInfo(RITUAL_ID);
       console.log(`✅ Found ${ritualInfo.participants.length} participants, threshold: ${ritualInfo.threshold}`);
 
-      // Create EncryptedData from messageKit bytes
-      // Note: We need to re-encrypt to create the handle, or we need to extend taco-mobile
-      // to support creating EncryptedData from existing MessageKit bytes
-      // For now, we'll use a workaround by fetching the DKG key and creating a dummy encryption
-      // This is a limitation of the current taco-mobile API
+      // Step 3: Create decryption request (generates ephemeral keypair)
+      console.log('🔑 Creating decryption request...');
+      const request = await encryptedData.createDecryptionRequest(RITUAL_ID);
+      console.log('✅ Decryption request created');
 
-      // TODO: This is a placeholder - taco-mobile needs to support deserializing MessageKit
-      // For now, we'll throw an error indicating this needs to be implemented
-      throw new Error('Decryption from MessageKit bytes requires taco-mobile API extension');
+      // Step 4: Request decryption shares from Ursulas
+      const shares = await this.requestDecryptionShares(
+        request,
+        ritualInfo.participants,
+        ritualInfo.threshold,
+        messageKitBytes
+      );
 
-      // The proper flow would be:
-      // 1. Create EncryptedData from messageKitBytes
-      // 2. Create decryption request
-      // 3. For each Ursula, create encrypted request
-      // 4. Submit requests to Porter
-      // 5. Collect and decrypt responses
-      // 6. Combine shares to recover plaintext
+      // Step 5: Combine shares to recover plaintext
+      console.log(`🔗 Combining ${shares.length} shares...`);
+      const plaintext = await request.combineDecryptionShares(shares);
+      console.log(`✅ Decryption successful! Plaintext size: ${plaintext.length} bytes`);
 
+      return plaintext;
     } catch (error) {
       console.error('❌ Decryption failed:', error);
       throw error;

@@ -18,6 +18,7 @@ import Icon from 'react-native-vector-icons/Feather';
 import { useDossier } from '../contexts/DossierContext';
 import { useNavigation } from '@react-navigation/native';
 import { MediaRecorder } from '../components/MediaRecorder';
+import { ErrorDialog } from '../components/ErrorDialog';
 import DocumentPicker from 'react-native-document-picker';
 
 type ReleaseMode = 'public' | 'contacts';
@@ -39,6 +40,12 @@ export const CreateDossierScreen = () => {
   // Step tracking
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Error dialog state
+  const [errorDialog, setErrorDialog] = useState<{ visible: boolean; message: string }>({
+    visible: false,
+    message: '',
+  });
 
   // Step 1: Dossier Details
   const [name, setName] = useState('');
@@ -100,19 +107,13 @@ export const CreateDossierScreen = () => {
       }));
 
       setUploadedFiles(prev => [...prev, ...newFiles]);
-
-      if (results.length === 1) {
-        Alert.alert('Success', `${results[0].name} has been added to your dossier`);
-      } else {
-        Alert.alert('Success', `${results.length} files have been added to your dossier`);
-      }
     } catch (err) {
       if (DocumentPicker.isCancel(err)) {
         // User cancelled the picker
         console.log('User cancelled file picker');
       } else {
         console.error('Error picking files:', err);
-        Alert.alert('Error', 'Failed to select files');
+        setErrorDialog({ visible: true, message: 'Failed to select files' });
       }
     }
   };
@@ -219,6 +220,16 @@ export const CreateDossierScreen = () => {
   const handleFinalize = async () => {
     setIsSubmitting(true);
     try {
+      // Validate that at least one file has been added
+      if (uploadedFiles.length === 0) {
+        setErrorDialog({
+          visible: true,
+          message: 'Please add at least one file to your dossier before creating it.',
+        });
+        setIsSubmitting(false);
+        return;
+      }
+
       // Convert interval to seconds
       const intervalMinutes = checkInInterval === 'custom'
         ? parseInt(customInterval) * 60
@@ -246,11 +257,11 @@ export const CreateDossierScreen = () => {
           [{ text: 'OK', onPress: () => navigation.goBack() }]
         );
       } else {
-        Alert.alert('Error', result.error || 'Failed to create dossier');
+        setErrorDialog({ visible: true, message: result.error || 'Failed to create dossier' });
       }
     } catch (error) {
       console.error('Create dossier error:', error);
-      Alert.alert('Error', 'An unexpected error occurred');
+      setErrorDialog({ visible: true, message: 'An unexpected error occurred' });
     } finally {
       setIsSubmitting(false);
     }
@@ -1127,6 +1138,13 @@ export const CreateDossierScreen = () => {
           />
         )}
       </Modal>
+
+      {/* Error Dialog */}
+      <ErrorDialog
+        visible={errorDialog.visible}
+        message={errorDialog.message}
+        onDismiss={() => setErrorDialog({ visible: false, message: '' })}
+      />
     </SafeAreaView>
   );
 };

@@ -8,6 +8,7 @@ import {
   Platform,
   PermissionsAndroid,
 } from 'react-native';
+import RNFS from 'react-native-fs';
 import Icon from 'react-native-vector-icons/Feather';
 import { useTheme } from '../contexts/ThemeContext';
 
@@ -131,10 +132,22 @@ export const MediaRecorder: React.FC<MediaRecorderProps> = ({ mode, onFileReady,
       stopTimer();
       setRecordingState('stopped');
 
-      // Placeholder: Generate a mock file URI
+      // Placeholder: Generate a mock file URI with platform-specific path
       const timestamp = Date.now();
       const extension = mode === 'video' ? 'mp4' : 'm4a';
-      const mockUri = `file:///data/user/0/com.canarymobile/${mode}_recording_${timestamp}.${extension}`;
+      const fileName = `${mode}_recording_${timestamp}.${extension}`;
+
+      // Use platform-specific document directory
+      const mockUri = `${RNFS.DocumentDirectoryPath}/${fileName}`;
+
+      // Create a placeholder file for testing purposes
+      // TODO: Replace with actual recorded file data
+      const placeholderData = mode === 'video'
+        ? 'Placeholder video data - actual recording not yet implemented'
+        : 'Placeholder audio data - actual recording not yet implemented';
+
+      await RNFS.writeFile(mockUri, placeholderData, 'utf8');
+      console.log(`📝 Created placeholder file at: ${mockUri}`);
 
       setRecordedUri(mockUri);
 
@@ -154,7 +167,20 @@ export const MediaRecorder: React.FC<MediaRecorderProps> = ({ mode, onFileReady,
         {
           text: 'Delete',
           style: 'destructive',
-          onPress: () => {
+          onPress: async () => {
+            // Delete the file from file system
+            if (recordedUri) {
+              try {
+                const exists = await RNFS.exists(recordedUri);
+                if (exists) {
+                  await RNFS.unlink(recordedUri);
+                  console.log(`🗑️ Deleted file: ${recordedUri}`);
+                }
+              } catch (error) {
+                console.error('Failed to delete file:', error);
+              }
+            }
+
             setRecordedUri(null);
             setRecordingState('idle');
             setDuration(0);
