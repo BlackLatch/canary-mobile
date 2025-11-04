@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
   Modal,
   TextInput,
   ActivityIndicator,
@@ -35,6 +34,9 @@ export const DossierDetailScreen = () => {
   const [showEditSchedule, setShowEditSchedule] = useState(false);
   const [showReleaseConfirm, setShowReleaseConfirm] = useState(false);
   const [showDisableConfirm, setShowDisableConfirm] = useState(false);
+  const [showSuccessDialog, setShowSuccessDialog] = useState(false);
+  const [showErrorDialog, setShowErrorDialog] = useState(false);
+  const [dialogMessage, setDialogMessage] = useState('');
   const [newInterval, setNewInterval] = useState('');
   const [customInterval, setCustomInterval] = useState('');
 
@@ -96,6 +98,16 @@ export const DossierDetailScreen = () => {
     return { text: 'Active', color: '#10B981', bgColor: '#D1FAE5' };
   };
 
+  const showSuccess = (message: string) => {
+    setDialogMessage(message);
+    setShowSuccessDialog(true);
+  };
+
+  const showError = (message: string) => {
+    setDialogMessage(message);
+    setShowErrorDialog(true);
+  };
+
   const handleCheckIn = async () => {
     setIsCheckingIn(true);
     try {
@@ -103,12 +115,12 @@ export const DossierDetailScreen = () => {
       if (result.success) {
         // Update local state
         setDossier({ ...dossier, lastCheckIn: Math.floor(Date.now() / 1000) });
-        Alert.alert('Success', 'Check-in completed successfully');
+        showSuccess('Check-in completed successfully');
       } else {
-        Alert.alert('Error', result.error || 'Failed to check in');
+        showError(result.error || 'Failed to check in');
       }
     } catch (error) {
-      Alert.alert('Error', 'An unexpected error occurred');
+      showError('An unexpected error occurred');
     } finally {
       setIsCheckingIn(false);
     }
@@ -122,12 +134,12 @@ export const DossierDetailScreen = () => {
 
       if (result.success) {
         setDossier({ ...dossier, isActive: !dossier.isActive });
-        Alert.alert('Success', dossier.isActive ? 'Dossier paused' : 'Dossier resumed');
+        showSuccess(dossier.isActive ? 'Dossier paused' : 'Dossier resumed');
       } else {
-        Alert.alert('Error', result.error || 'Failed to update dossier');
+        showError(result.error || 'Failed to update dossier');
       }
     } catch (error) {
-      Alert.alert('Error', 'An unexpected error occurred');
+      showError('An unexpected error occurred');
     }
   };
 
@@ -137,7 +149,7 @@ export const DossierDetailScreen = () => {
       : parseInt(newInterval);
 
     if (isNaN(intervalMinutes) || intervalMinutes <= 0) {
-      Alert.alert('Error', 'Please enter a valid interval');
+      showError('Please enter a valid interval');
       return;
     }
 
@@ -148,12 +160,12 @@ export const DossierDetailScreen = () => {
       if (result.success) {
         setDossier({ ...dossier, checkInFrequency: intervalSeconds });
         setShowEditSchedule(false);
-        Alert.alert('Success', 'Check-in schedule updated');
+        showSuccess('Check-in schedule updated');
       } else {
-        Alert.alert('Error', result.error || 'Failed to update schedule');
+        showError(result.error || 'Failed to update schedule');
       }
     } catch (error) {
-      Alert.alert('Error', 'An unexpected error occurred');
+      showError('An unexpected error occurred');
     }
   };
 
@@ -163,12 +175,12 @@ export const DossierDetailScreen = () => {
       if (result.success) {
         setDossier({ ...dossier, isReleased: true });
         setShowReleaseConfirm(false);
-        Alert.alert('Success', 'Dossier has been released');
+        showSuccess('Dossier has been released');
       } else {
-        Alert.alert('Error', result.error || 'Failed to release dossier');
+        showError(result.error || 'Failed to release dossier');
       }
     } catch (error) {
-      Alert.alert('Error', 'An unexpected error occurred');
+      showError('An unexpected error occurred');
     }
   };
 
@@ -178,22 +190,22 @@ export const DossierDetailScreen = () => {
       if (result.success) {
         setDossier({ ...dossier, isPermanentlyDisabled: true });
         setShowDisableConfirm(false);
-        Alert.alert('Success', 'Dossier has been permanently disabled');
+        showSuccess('Dossier has been permanently disabled');
       } else {
-        Alert.alert('Error', result.error || 'Failed to disable dossier');
+        showError(result.error || 'Failed to disable dossier');
       }
     } catch (error) {
-      Alert.alert('Error', 'An unexpected error occurred');
+      showError('An unexpected error occurred');
     }
   };
 
   const handleDecrypt = async () => {
-    Alert.alert('Coming Soon', 'Decryption functionality will be available in a future update');
+    showError('Decryption functionality will be available in a future update');
   };
 
   const copyToClipboard = (text: string, label: string) => {
     Clipboard.setString(text);
-    Alert.alert('Copied', `${label} copied to clipboard`);
+    showSuccess(`${label} copied to clipboard`);
   };
 
   const statusInfo = getStatusInfo();
@@ -541,6 +553,52 @@ export const DossierDetailScreen = () => {
           </View>
         </View>
       </Modal>
+
+      {/* Success Dialog Modal */}
+      <Modal
+        visible={showSuccessDialog}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowSuccessDialog(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, styles.alertDialogContent, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+            <Text style={[styles.alertDialogTitle, { color: theme.colors.text }]}>Success</Text>
+            <Text style={[styles.alertDialogMessage, { color: theme.colors.textSecondary }]}>
+              {dialogMessage}
+            </Text>
+            <TouchableOpacity
+              style={[styles.alertDialogButton, { backgroundColor: theme.colors.text }]}
+              onPress={() => setShowSuccessDialog(false)}
+            >
+              <Text style={[styles.alertDialogButtonText, { color: theme.colors.background }]}>OK</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Error Dialog Modal */}
+      <Modal
+        visible={showErrorDialog}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowErrorDialog(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, styles.alertDialogContent, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+            <Text style={[styles.alertDialogTitle, { color: theme.colors.error }]}>Error</Text>
+            <Text style={[styles.alertDialogMessage, { color: theme.colors.textSecondary }]}>
+              {dialogMessage}
+            </Text>
+            <TouchableOpacity
+              style={[styles.alertDialogButton, { backgroundColor: theme.colors.text }]}
+              onPress={() => setShowErrorDialog(false)}
+            >
+              <Text style={[styles.alertDialogButtonText, { color: theme.colors.background }]}>OK</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -778,6 +836,33 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  alertDialogContent: {
+    width: '90%',
+    maxWidth: 340,
+    borderWidth: 1,
+  },
+  alertDialogTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  alertDialogMessage: {
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  alertDialogButton: {
+    width: '100%',
+    paddingVertical: 14,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  alertDialogButtonText: {
     fontSize: 16,
     fontWeight: '600',
   },

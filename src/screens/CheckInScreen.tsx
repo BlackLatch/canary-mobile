@@ -15,11 +15,13 @@ import {
   ActivityIndicator,
   Share,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useWallet } from '../contexts/WalletContext';
 import { useDossier } from '../contexts/DossierContext';
 import { useTheme } from '../contexts/ThemeContext';
 
 export const CheckInScreen: React.FC = () => {
+  const insets = useSafeAreaInsets();
   const { address, isConnected, connectBurnerWallet } = useWallet();
   const { dossiers, isLoading, loadDossiers, checkInAll } = useDossier();
   const { theme } = useTheme();
@@ -164,18 +166,10 @@ export const CheckInScreen: React.FC = () => {
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + 16 }]}
         refreshControl={
           <RefreshControl refreshing={isLoading} onRefresh={loadDossiers} colors={[theme.colors.primary]} />
         }>
-        {/* Page Header */}
-        <View style={[styles.pageHeader, { borderBottomColor: theme.colors.border }]}>
-          <Text style={[styles.pageTitle, { color: theme.colors.text }]}>CHECK IN</Text>
-          <Text style={[styles.pageSubtitle, { color: theme.colors.textSecondary }]}>
-            Maintain your system status and manage your encrypted documents
-          </Text>
-        </View>
-
         {isLoading ? (
           // Loading State
           <View style={styles.loadingContainer}>
@@ -333,22 +327,6 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-  },
-  pageHeader: {
-    paddingHorizontal: 24,
-    paddingTop: 32,
-    paddingBottom: 24,
-    borderBottomWidth: 1,
-  },
-  pageTitle: {
-    fontSize: 36,
-    fontWeight: '700',
-    marginBottom: 8,
-    letterSpacing: -0.5,
-  },
-  pageSubtitle: {
-    fontSize: 16,
-    lineHeight: 24,
   },
   loadingContainer: {
     flex: 1,

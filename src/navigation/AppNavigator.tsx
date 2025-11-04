@@ -34,7 +34,8 @@ const TabNavigator = () => {
           fontSize: 11,
           fontWeight: '600',
           marginTop: 4,
-          letterSpacing: 0.5,
+          letterSpacing: 1,
+          textTransform: 'uppercase',
         },
       }}
     >

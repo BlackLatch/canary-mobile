@@ -8,18 +8,11 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useDossier } from '../contexts/DossierContext';
-import { useWallet } from '../contexts/WalletContext';
 import { useTheme } from '../contexts/ThemeContext';
 
 export const MonitorScreen = () => {
-  const { address } = useWallet();
   const { dossiers, isLoading, refreshDossiers } = useDossier();
   const { theme } = useTheme();
-
-  const formatAddress = (addr: string) => {
-    if (!addr) return '';
-    return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
-  };
 
   const activeDossiers = dossiers.filter(d => d.isActive);
   const inactiveDossiers = dossiers.filter(d => !d.isActive);
@@ -47,15 +40,8 @@ export const MonitorScreen = () => {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
-      <View style={[styles.header, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.border }]}>
-        <Text style={[styles.headerTitle, { color: theme.colors.text }]}>Monitor</Text>
-        {address && (
-          <Text style={[styles.headerSubtitle, { color: theme.colors.textSecondary }]}>{formatAddress(address)}</Text>
-        )}
-      </View>
-
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingTop: 16 }]}
         refreshControl={
           <RefreshControl
             refreshing={isLoading}
@@ -186,23 +172,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F9FAFB',
-  },
-  header: {
-    paddingHorizontal: 24,
-    paddingVertical: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-    backgroundColor: '#FFFFFF',
-  },
-  headerTitle: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#111827',
-    marginBottom: 4,
-  },
-  headerSubtitle: {
-    fontSize: 14,
-    color: '#6B7280',
   },
   scrollContent: {
     padding: 16,

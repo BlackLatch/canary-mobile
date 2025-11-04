@@ -565,9 +565,9 @@ export const CreateDossierScreen = () => {
           </View>
         )}
 
-        <View style={[styles.warningCard, { backgroundColor: theme.colors.card, borderLeftColor: theme.colors.warning }]}>
-          <Icon name="alert-circle" size={20} color={theme.colors.warning} />
-          <Text style={[styles.warningText, { color: theme.colors.text }]}>
+        <View style={[styles.warningCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+          <Icon name="info" size={16} color={theme.colors.textSecondary} />
+          <Text style={[styles.warningText, { color: theme.colors.textSecondary }]}>
             The dossier will be automatically released if you don't check in within this timeframe.
           </Text>
         </View>
@@ -1065,15 +1065,15 @@ const styles = StyleSheet.create({
   },
   warningCard: {
     flexDirection: 'row',
-    borderRadius: 12,
-    padding: 16,
-    gap: 12,
-    borderLeftWidth: 4,
+    borderRadius: 8,
+    padding: 12,
+    gap: 8,
+    borderWidth: 1,
   },
   warningText: {
     flex: 1,
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 13,
+    lineHeight: 18,
   },
   termsText: {
     fontSize: 14,
