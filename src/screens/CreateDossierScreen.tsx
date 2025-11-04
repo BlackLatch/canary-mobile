@@ -46,6 +46,8 @@ export const CreateDossierScreen = () => {
   // Step 2: Visibility
   const [releaseMode, setReleaseMode] = useState<ReleaseMode>('public');
   const [emergencyContacts, setEmergencyContacts] = useState<string[]>(['']);
+  const [expandedRecommendations, setExpandedRecommendations] = useState<ReleaseMode | null>(null);
+  const [step2SubStep, setStep2SubStep] = useState<'selection' | 'contacts'>('selection'); // selection or contacts management
 
   // Step 3: Check-in Schedule
   const [checkInInterval, setCheckInInterval] = useState('');
@@ -155,14 +157,28 @@ export const CreateDossierScreen = () => {
   const handleNext = () => {
     if (currentStep < 5 && isStepValid(currentStep)) {
       setCurrentStep(currentStep + 1);
+      // Reset step 2 sub-step when leaving step 2
+      if (currentStep === 2) {
+        setStep2SubStep('selection');
+      }
     } else if (currentStep === 5) {
       handleFinalize();
     }
   };
 
   const handleBack = () => {
+    // Handle sub-step navigation for step 2
+    if (currentStep === 2 && step2SubStep === 'contacts') {
+      setStep2SubStep('selection');
+      return;
+    }
+
     if (currentStep > 1) {
       setCurrentStep(currentStep - 1);
+      // Reset step 2 sub-step when entering step 2 from step 3
+      if (currentStep === 3) {
+        setStep2SubStep('selection');
+      }
     }
   };
 
@@ -242,25 +258,34 @@ export const CreateDossierScreen = () => {
   // Render step indicators
   const renderStepIndicators = () => (
     <View style={styles.stepIndicators}>
-      {[1, 2, 3, 4, 5].map((step) => (
-        <TouchableOpacity
-          key={step}
-          style={[
-            styles.stepIndicator,
-            step === currentStep && styles.stepIndicatorActive,
-            step < currentStep && styles.stepIndicatorCompleted,
-          ]}
-          onPress={() => setCurrentStep(step)}
-        >
-          <Text
+      {[1, 2, 3, 4, 5].map((step, index) => (
+        <React.Fragment key={step}>
+          <TouchableOpacity
             style={[
-              styles.stepIndicatorText,
-              (step === currentStep || step < currentStep) && styles.stepIndicatorTextActive,
+              styles.stepIndicator,
+              step === currentStep && styles.stepIndicatorActive,
+              step < currentStep && styles.stepIndicatorCompleted,
             ]}
+            onPress={() => setCurrentStep(step)}
           >
-            {step < currentStep ? '✓' : step}
-          </Text>
-        </TouchableOpacity>
+            <Text
+              style={[
+                styles.stepIndicatorText,
+                (step === currentStep || step < currentStep) && styles.stepIndicatorTextActive,
+              ]}
+            >
+              {step < currentStep ? '✓' : step}
+            </Text>
+          </TouchableOpacity>
+          {index < 4 && (
+            <View
+              style={[
+                styles.stepConnector,
+                step < currentStep && styles.stepConnectorCompleted,
+              ]}
+            />
+          )}
+        </React.Fragment>
       ))}
     </View>
   );
@@ -358,8 +383,8 @@ export const CreateDossierScreen = () => {
     </View>
   );
 
-  // Step 2: Visibility
-  const renderStep2 = () => (
+  // Step 2: Visibility - Selection Screen
+  const renderStep2Selection = () => (
     <View style={styles.stepContent}>
       <Text style={[styles.stepTitle, { color: theme.colors.text }]}>
         Visibility
@@ -388,9 +413,42 @@ export const CreateDossierScreen = () => {
               Public Release
             </Text>
           </View>
-          <Text style={[styles.optionDescription, { color: theme.colors.textSecondary }]}>
-            Your document will be automatically decrypted and made publicly accessible if no check-in occurs by your selected deadline.
-          </Text>
+          <View style={styles.optionDescriptionContainer}>
+            <Text style={[styles.optionDescription, { color: theme.colors.textSecondary }]}>
+              Your document will be automatically decrypted and made publicly accessible if no check-in occurs by your selected deadline.
+            </Text>
+
+            <TouchableOpacity
+              style={styles.recommendedToggle}
+              onPress={() => setExpandedRecommendations(expandedRecommendations === 'public' ? null : 'public')}
+            >
+              <Text style={[styles.optionRecommendedTitle, { color: theme.colors.primary }]}>
+                Recommended when
+              </Text>
+              <Icon
+                name={expandedRecommendations === 'public' ? 'chevron-up' : 'chevron-down'}
+                size={16}
+                color={theme.colors.primary}
+              />
+            </TouchableOpacity>
+
+            {expandedRecommendations === 'public' && (
+              <View style={styles.recommendedContent}>
+                <Text style={[styles.optionBullet, { color: theme.colors.textSecondary }]}>
+                  • You intend for the document to become public
+                </Text>
+                <Text style={[styles.optionBullet, { color: theme.colors.textSecondary }]}>
+                  • Broad visibility or long-term access is desired
+                </Text>
+                <Text style={[styles.optionBullet, { color: theme.colors.textSecondary }]}>
+                  • Recipients are undefined or not individually selected
+                </Text>
+                <Text style={[styles.optionBullet, { color: theme.colors.textSecondary }]}>
+                  • You want to ensure availability regardless of personal access
+                </Text>
+              </View>
+            )}
+          </View>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -399,7 +457,10 @@ export const CreateDossierScreen = () => {
             releaseMode === 'contacts' && styles.optionCardSelected,
             { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }
           ]}
-          onPress={() => setReleaseMode('contacts')}
+          onPress={() => {
+            setReleaseMode('contacts');
+            setStep2SubStep('contacts');
+          }}
         >
           <View style={styles.optionHeader}>
             <View style={[
@@ -412,52 +473,117 @@ export const CreateDossierScreen = () => {
               Emergency Contacts
             </Text>
           </View>
-          <Text style={[styles.optionDescription, { color: theme.colors.textSecondary }]}>
-            Your document will be privately sent to specific contacts if no check-in occurs by your selected deadline.
-          </Text>
+          <View style={styles.optionDescriptionContainer}>
+            <Text style={[styles.optionDescription, { color: theme.colors.textSecondary }]}>
+              Your document will be privately sent to specific contacts if no check-in occurs by your selected deadline.
+            </Text>
+
+            <TouchableOpacity
+              style={styles.recommendedToggle}
+              onPress={() => setExpandedRecommendations(expandedRecommendations === 'contacts' ? null : 'contacts')}
+            >
+              <Text style={[styles.optionRecommendedTitle, { color: theme.colors.primary }]}>
+                Recommended when
+              </Text>
+              <Icon
+                name={expandedRecommendations === 'contacts' ? 'chevron-up' : 'chevron-down'}
+                size={16}
+                color={theme.colors.primary}
+              />
+            </TouchableOpacity>
+
+            {expandedRecommendations === 'contacts' && (
+              <View style={styles.recommendedContent}>
+                <Text style={[styles.optionBullet, { color: theme.colors.textSecondary }]}>
+                  • You want to share with selected individuals only
+                </Text>
+                <Text style={[styles.optionBullet, { color: theme.colors.textSecondary }]}>
+                  • Privacy and discretion are priorities
+                </Text>
+                <Text style={[styles.optionBullet, { color: theme.colors.textSecondary }]}>
+                  • You need direct delivery without public exposure
+                </Text>
+                <Text style={[styles.optionBullet, { color: theme.colors.textSecondary }]}>
+                  • Recipients are trusted and known in advance
+                </Text>
+              </View>
+            )}
+          </View>
         </TouchableOpacity>
       </View>
 
-      {releaseMode === 'contacts' && (
-        <View style={[styles.card, { backgroundColor: theme.colors.card }]}>
-          <Text style={[styles.label, { color: theme.colors.text }]}>
-            Emergency Contacts <Text style={styles.required}>*</Text>
-          </Text>
-          {emergencyContacts.map((contact, index) => (
-            <View key={index} style={styles.contactRow}>
-              <TextInput
-                style={[styles.input, styles.contactInput, {
-                  backgroundColor: theme.colors.surface,
-                  color: theme.colors.text,
-                  borderColor: theme.colors.border,
-                }]}
-                placeholder="0x..."
-                placeholderTextColor={theme.colors.textSecondary}
-                value={contact}
-                onChangeText={(text) => updateEmergencyContact(index, text)}
-                autoCapitalize="none"
-              />
-              {emergencyContacts.length > 1 && (
-                <TouchableOpacity
-                  style={styles.removeButton}
-                  onPress={() => removeEmergencyContact(index)}
-                >
-                  <Icon name="x" size={20} color={theme.colors.error} />
-                </TouchableOpacity>
-              )}
-            </View>
-          ))}
-          <TouchableOpacity
-            style={[styles.addButton, { backgroundColor: theme.colors.primary }]}
-            onPress={addEmergencyContact}
-          >
-            <Icon name="plus" size={16} color="#FFFFFF" />
-            <Text style={styles.addButtonText}>Add Another Contact</Text>
-          </TouchableOpacity>
-        </View>
-      )}
     </View>
   );
+
+  // Step 2: Emergency Contacts Management Screen
+  const renderStep2Contacts = () => (
+    <View style={styles.stepContent}>
+      <Text style={[styles.stepTitle, { color: theme.colors.text }]}>
+        Emergency Contacts
+      </Text>
+      <Text style={[styles.stepSubtitle, { color: theme.colors.textSecondary }]}>
+        Step 2 of 5
+      </Text>
+
+      <View style={[styles.card, { backgroundColor: theme.colors.card }]}>
+        <Text style={[styles.label, { color: theme.colors.text }]}>
+          Add Contact Addresses <Text style={styles.required}>*</Text>
+        </Text>
+        <Text style={[styles.hint, { color: theme.colors.textSecondary }]}>
+          Enter Ethereum addresses for contacts who will receive your encrypted document
+        </Text>
+
+        {emergencyContacts.map((contact, index) => (
+          <View key={index} style={styles.contactRow}>
+            <TextInput
+              style={[styles.input, styles.contactInput, {
+                backgroundColor: theme.colors.surface,
+                color: theme.colors.text,
+                borderColor: theme.colors.border,
+              }]}
+              placeholder="0x..."
+              placeholderTextColor={theme.colors.textSecondary}
+              value={contact}
+              onChangeText={(text) => updateEmergencyContact(index, text)}
+              autoCapitalize="none"
+            />
+            {emergencyContacts.length > 1 && (
+              <TouchableOpacity
+                style={styles.removeButton}
+                onPress={() => removeEmergencyContact(index)}
+              >
+                <Icon name="x" size={20} color={theme.colors.error} />
+              </TouchableOpacity>
+            )}
+          </View>
+        ))}
+        <TouchableOpacity
+          style={[styles.addButton, { backgroundColor: theme.colors.primary }]}
+          onPress={addEmergencyContact}
+        >
+          <Icon name="plus" size={16} color="#FFFFFF" />
+          <Text style={styles.addButtonText}>Add Another Contact</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={[styles.infoCard, { backgroundColor: theme.colors.card }]}>
+        <Text style={[styles.infoTitle, { color: theme.colors.text }]}>
+          About Emergency Contacts
+        </Text>
+        <Text style={[styles.infoText, { color: theme.colors.textSecondary }]}>
+          These addresses will receive access to decrypt your document if you fail to check in. Ensure these are trusted contacts with valid Ethereum addresses.
+        </Text>
+      </View>
+    </View>
+  );
+
+  // Step 2: Router
+  const renderStep2 = () => {
+    if (step2SubStep === 'contacts') {
+      return renderStep2Contacts();
+    }
+    return renderStep2Selection();
+  };
 
   // Step 3: Check-in Schedule
   const renderStep3 = () => {
@@ -993,7 +1119,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingVertical: 20,
-    gap: 12,
+    gap: 0,
   },
   stepIndicator: {
     width: 40,
@@ -1002,6 +1128,16 @@ const styles = StyleSheet.create({
     backgroundColor: '#E5E7EB',
     justifyContent: 'center',
     alignItems: 'center',
+    zIndex: 1,
+  },
+  stepConnector: {
+    width: 24,
+    height: 2,
+    backgroundColor: '#E5E7EB',
+    marginHorizontal: 4,
+  },
+  stepConnectorCompleted: {
+    backgroundColor: '#10B981',
   },
   stepIndicatorActive: {
     backgroundColor: '#e53e3e',
@@ -1099,8 +1235,8 @@ const styles = StyleSheet.create({
   optionCard: {
     borderWidth: 2,
     borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
+    padding: 20,
+    marginBottom: 16,
   },
   optionCardSelected: {
     borderColor: '#e53e3e',
@@ -1135,7 +1271,34 @@ const styles = StyleSheet.create({
   },
   optionDescription: {
     fontSize: 14,
+    lineHeight: 22,
+    marginBottom: 4,
+  },
+  optionDescriptionContainer: {
+    gap: 12,
+  },
+  recommendedToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 12,
+    paddingTop: 12,
+    paddingBottom: 8,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  optionRecommendedTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  recommendedContent: {
+    marginTop: 8,
+    gap: 8,
+  },
+  optionBullet: {
+    fontSize: 13,
     lineHeight: 20,
+    paddingLeft: 4,
   },
   contactRow: {
     flexDirection: 'row',

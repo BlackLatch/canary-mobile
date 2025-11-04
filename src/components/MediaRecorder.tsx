@@ -26,6 +26,7 @@ export const MediaRecorder: React.FC<MediaRecorderProps> = ({ mode, onFileReady,
   const [duration, setDuration] = useState(0);
   const [hasPermission, setHasPermission] = useState(false);
   const [recordedUri, setRecordedUri] = useState<string | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
@@ -163,6 +164,16 @@ export const MediaRecorder: React.FC<MediaRecorderProps> = ({ mode, onFileReady,
     );
   };
 
+  const handlePlayPause = () => {
+    // TODO: Implement actual audio/video playback
+    // For now, this is a placeholder that demonstrates the UI flow
+    setIsPlaying(!isPlaying);
+    console.log(isPlaying ? '⏸️ Paused playback' : '▶️ Started playback');
+
+    // Placeholder: In production, use react-native-video or react-native-sound
+    // to play the recorded file at recordedUri
+  };
+
   const handleUseRecording = () => {
     if (!recordedUri) {
       Alert.alert('Error', 'No recording available');
@@ -189,10 +200,6 @@ export const MediaRecorder: React.FC<MediaRecorderProps> = ({ mode, onFileReady,
     if (recordingState === 'stopped' && recordedUri) {
       return (
         <View style={styles.stoppedControls}>
-          <Text style={[styles.duration, { color: theme.colors.text }]}>
-            {formatDuration(duration)}
-          </Text>
-
           {mode === 'video' && (
             <View style={[styles.videoPreview, { backgroundColor: theme.colors.border }]}>
               <Icon name="video" size={48} color={theme.colors.textSecondary} />
@@ -216,6 +223,13 @@ export const MediaRecorder: React.FC<MediaRecorderProps> = ({ mode, onFileReady,
             </View>
           )}
 
+          <TouchableOpacity
+            style={[styles.playButton, { backgroundColor: theme.colors.primary }]}
+            onPress={handlePlayPause}
+          >
+            <Icon name={isPlaying ? 'pause' : 'play'} size={24} color="#FFFFFF" />
+          </TouchableOpacity>
+
           <View style={styles.actionButtons}>
             <TouchableOpacity
               style={[styles.deleteButton, { borderColor: '#EF4444' }]}
@@ -230,7 +244,7 @@ export const MediaRecorder: React.FC<MediaRecorderProps> = ({ mode, onFileReady,
               onPress={handleUseRecording}
             >
               <Icon name="check" size={20} color="#FFFFFF" />
-              <Text style={styles.useButtonText}>Use This Recording</Text>
+              <Text style={styles.useButtonText}>Accept</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -437,9 +451,9 @@ const styles = StyleSheet.create({
     width: '100%',
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
+    padding: 20,
     borderRadius: 12,
-    marginBottom: 24,
+    marginBottom: 8,
   },
   audioInfo: {
     marginLeft: 16,
@@ -455,8 +469,9 @@ const styles = StyleSheet.create({
   },
   actionButtons: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 16,
     width: '100%',
+    marginTop: 8,
   },
   deleteButton: {
     flex: 1,
@@ -485,5 +500,18 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#FFFFFF',
+  },
+  playButton: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginVertical: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 4,
   },
 });
