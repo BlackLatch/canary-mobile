@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../contexts/ThemeContext';
+import { useWallet } from '../contexts/WalletContext';
 import Icon from 'react-native-vector-icons/Feather';
 import { useDossier } from '../contexts/DossierContext';
 import { useNavigation } from '@react-navigation/native';
@@ -32,6 +33,7 @@ export const CreateDossierScreen = () => {
   const { theme } = useTheme();
   const navigation = useNavigation();
   const { createDossier } = useDossier();
+  const { address, signTypedData } = useWallet();
 
   // Step tracking
   const [currentStep, setCurrentStep] = useState(1);
@@ -51,6 +53,7 @@ export const CreateDossierScreen = () => {
 
   // Step 4: File Encryption (simplified for now)
   const [hasAcceptedTerms, setHasAcceptedTerms] = useState(false);
+  const [termsSignature, setTermsSignature] = useState<string | null>(null);
   const [recordingMode, setRecordingMode] = useState<RecordingMode>(null);
   const [uploadedFiles, setUploadedFiles] = useState<Array<{ uri: string; name: string; type: string; size: number }>>([]);
 
@@ -386,7 +389,7 @@ export const CreateDossierScreen = () => {
             </Text>
           </View>
           <Text style={[styles.optionDescription, { color: theme.colors.textSecondary }]}>
-            Document auto-decrypts and becomes publicly accessible on deadline
+            Your document will be automatically decrypted and made publicly accessible if no check-in occurs by your selected deadline.
           </Text>
         </TouchableOpacity>
 
@@ -410,7 +413,7 @@ export const CreateDossierScreen = () => {
             </Text>
           </View>
           <Text style={[styles.optionDescription, { color: theme.colors.textSecondary }]}>
-            Document privately sent to specific contacts on deadline
+            Your document will be privately sent to specific contacts if no check-in occurs by your selected deadline.
           </Text>
         </TouchableOpacity>
       </View>
@@ -531,21 +534,116 @@ export const CreateDossierScreen = () => {
             <Text style={[styles.label, { color: theme.colors.text }]}>
               Custom Interval (Hours)
             </Text>
-            <TextInput
-              style={[styles.input, {
+            <View style={styles.stepperContainer}>
+              {/* Decrement button */}
+              <TouchableOpacity
+                style={[styles.stepperButton, {
+                  backgroundColor: theme.colors.surface,
+                  borderColor: theme.colors.border,
+                }]}
+                onPress={() => {
+                  const current = parseInt(customInterval) || 24;
+                  const newValue = Math.max(1, current - 1);
+                  setCustomInterval(newValue.toString());
+                  setCheckInInterval('custom');
+                }}
+              >
+                <Icon name="minus" size={20} color={theme.colors.text} />
+              </TouchableOpacity>
+
+              {/* Value display */}
+              <View style={[styles.stepperValue, {
                 backgroundColor: theme.colors.surface,
-                color: theme.colors.text,
                 borderColor: theme.colors.border,
-              }]}
-              placeholder="Enter hours (1-8760)"
-              placeholderTextColor={theme.colors.textSecondary}
-              value={customInterval}
-              onChangeText={(text) => {
-                setCustomInterval(text);
-                setCheckInInterval('custom');
-              }}
-              keyboardType="numeric"
-            />
+              }]}>
+                <Text style={[styles.stepperValueText, { color: theme.colors.text }]}>
+                  {customInterval || '24'}
+                </Text>
+                <Text style={[styles.stepperValueLabel, { color: theme.colors.textSecondary }]}>
+                  {parseInt(customInterval || '24') === 1 ? 'hour' : 'hours'}
+                </Text>
+              </View>
+
+              {/* Increment button */}
+              <TouchableOpacity
+                style={[styles.stepperButton, {
+                  backgroundColor: theme.colors.surface,
+                  borderColor: theme.colors.border,
+                }]}
+                onPress={() => {
+                  const current = parseInt(customInterval) || 24;
+                  const newValue = Math.min(8760, current + 1);
+                  setCustomInterval(newValue.toString());
+                  setCheckInInterval('custom');
+                }}
+              >
+                <Icon name="plus" size={20} color={theme.colors.text} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Quick adjustment buttons */}
+            <View style={styles.quickAdjustContainer}>
+              <TouchableOpacity
+                style={[styles.quickAdjustButton, {
+                  backgroundColor: theme.colors.surface,
+                  borderColor: theme.colors.border,
+                }]}
+                onPress={() => {
+                  const current = parseInt(customInterval) || 24;
+                  const newValue = Math.max(1, current - 10);
+                  setCustomInterval(newValue.toString());
+                  setCheckInInterval('custom');
+                }}
+              >
+                <Text style={[styles.quickAdjustText, { color: theme.colors.textSecondary }]}>-10</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.quickAdjustButton, {
+                  backgroundColor: theme.colors.surface,
+                  borderColor: theme.colors.border,
+                }]}
+                onPress={() => {
+                  const current = parseInt(customInterval) || 24;
+                  const newValue = Math.max(1, current - 100);
+                  setCustomInterval(newValue.toString());
+                  setCheckInInterval('custom');
+                }}
+              >
+                <Text style={[styles.quickAdjustText, { color: theme.colors.textSecondary }]}>-100</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.quickAdjustButton, {
+                  backgroundColor: theme.colors.surface,
+                  borderColor: theme.colors.border,
+                }]}
+                onPress={() => {
+                  const current = parseInt(customInterval) || 24;
+                  const newValue = Math.min(8760, current + 100);
+                  setCustomInterval(newValue.toString());
+                  setCheckInInterval('custom');
+                }}
+              >
+                <Text style={[styles.quickAdjustText, { color: theme.colors.textSecondary }]}>+100</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.quickAdjustButton, {
+                  backgroundColor: theme.colors.surface,
+                  borderColor: theme.colors.border,
+                }]}
+                onPress={() => {
+                  const current = parseInt(customInterval) || 24;
+                  const newValue = Math.min(8760, current + 10);
+                  setCustomInterval(newValue.toString());
+                  setCheckInInterval('custom');
+                }}
+              >
+                <Text style={[styles.quickAdjustText, { color: theme.colors.textSecondary }]}>+10</Text>
+              </TouchableOpacity>
+            </View>
+
             <Text style={[styles.hint, { color: theme.colors.textSecondary }]}>
               Min: 1 hour | Max: 1 year (8760 hours)
             </Text>
@@ -587,14 +685,56 @@ export const CreateDossierScreen = () => {
 
       {!hasAcceptedTerms ? (
         <View style={[styles.card, { backgroundColor: theme.colors.card }]}>
-          <Text style={[styles.termsText, { color: theme.colors.text }]}>
-            Before uploading files, you must accept the Acceptable Use Policy & Terms of Service.
+          <Text style={[styles.termsText, { color: theme.colors.textSecondary }]}>
+            You must cryptographically sign the Acceptable Use Policy & Terms of Service before proceeding.
           </Text>
           <TouchableOpacity
             style={[styles.acceptButton, { backgroundColor: theme.colors.primary }]}
-            onPress={() => setHasAcceptedTerms(true)}
+            onPress={async () => {
+              try {
+                if (!address) {
+                  Alert.alert('Error', 'No wallet connected');
+                  return;
+                }
+
+                // Define EIP-712 domain
+                const domain = {
+                  name: 'Canary',
+                  version: '1',
+                  chainId: 11155111, // Status Testnet (Sepolia)
+                };
+
+                // Define EIP-712 types
+                const types = {
+                  Terms: [
+                    { name: 'acceptor', type: 'address' },
+                    { name: 'document', type: 'string' },
+                    { name: 'timestamp', type: 'uint256' },
+                  ],
+                };
+
+                // Define EIP-712 value
+                const value = {
+                  acceptor: address,
+                  document: 'Canary Acceptable Use Policy & Terms of Service v1.0',
+                  timestamp: Math.floor(Date.now() / 1000),
+                };
+
+                // Sign typed data
+                const signature = await signTypedData(domain, types, value);
+
+                // Store signature and mark as accepted
+                setTermsSignature(signature);
+                setHasAcceptedTerms(true);
+
+                console.log('✅ Terms signed:', signature);
+              } catch (error) {
+                console.error('❌ Failed to sign terms:', error);
+                Alert.alert('Error', 'Failed to sign terms. Please try again.');
+              }
+            }}
           >
-            <Text style={styles.acceptButtonText}>Accept Terms to Continue</Text>
+            <Text style={styles.acceptButtonText}>Sign Terms to Continue</Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -1188,5 +1328,54 @@ const styles = StyleSheet.create({
   },
   fileSize: {
     fontSize: 12,
+  },
+  // Stepper styles
+  stepperContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  stepperButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 8,
+    borderWidth: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  stepperValue: {
+    flex: 1,
+    height: 48,
+    borderRadius: 8,
+    borderWidth: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  stepperValueText: {
+    fontSize: 20,
+    fontWeight: '700',
+    fontFamily: 'monospace',
+  },
+  stepperValueLabel: {
+    fontSize: 11,
+    marginTop: -2,
+  },
+  quickAdjustContainer: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 4,
+  },
+  quickAdjustButton: {
+    flex: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    borderWidth: 1,
+    alignItems: 'center',
+  },
+  quickAdjustText: {
+    fontSize: 13,
+    fontWeight: '600',
+    fontFamily: 'monospace',
   },
 });

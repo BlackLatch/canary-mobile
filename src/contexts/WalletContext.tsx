@@ -33,6 +33,7 @@ interface WalletContextState {
   // Provider/signer access
   getSigner: () => Promise<ethers.Signer | null>;
   getProvider: () => ethers.providers.Provider;
+  signTypedData: (domain: ethers.TypedDataDomain, types: Record<string, ethers.TypedDataField[]>, value: Record<string, any>) => Promise<string>;
 
   // Balance
   balance: ethers.BigNumber | null;
@@ -277,6 +278,44 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     }
   };
 
+  /**
+   * Sign typed data (EIP-712)
+   */
+  const signTypedData = async (
+    domain: ethers.TypedDataDomain,
+    types: Record<string, ethers.TypedDataField[]>,
+    value: Record<string, any>
+  ): Promise<string> => {
+    try {
+      if (!isConnected || !walletType) {
+        throw new Error('No wallet connected');
+      }
+
+      if (walletType === 'burner') {
+        const wallet = burnerWalletService.getWallet();
+        if (!wallet) {
+          throw new Error('Burner wallet not found');
+        }
+
+        // Sign typed data using ethers
+        const signature = await wallet._signTypedData(domain, types, value);
+        console.log('✍️ Signed typed data:', signature);
+        return signature;
+      } else if (walletType === 'walletconnect') {
+        // TODO: Get WalletConnect to sign typed data
+        throw new Error('WalletConnect not yet implemented');
+      } else if (walletType === 'embedded') {
+        // TODO: Get embedded wallet to sign typed data
+        throw new Error('Embedded wallet not yet implemented');
+      }
+
+      throw new Error('Unknown wallet type');
+    } catch (error) {
+      console.error('❌ Failed to sign typed data:', error);
+      throw error;
+    }
+  };
+
   const value: WalletContextState = {
     walletType,
     address,
@@ -289,6 +328,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     disconnect,
     getSigner,
     getProvider,
+    signTypedData,
     balance,
     refreshBalance,
   };
