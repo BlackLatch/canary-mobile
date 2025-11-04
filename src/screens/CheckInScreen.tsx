@@ -1,28 +1,31 @@
 /**
- * Check-In Screen (Dashboard)
+ * Check-In Screen (System Status Dashboard)
  *
- * Main screen showing user's dossiers with check-in functionality
+ * System-level check-in view matching reference implementation
  */
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  FlatList,
   TouchableOpacity,
+  ScrollView,
   RefreshControl,
   ActivityIndicator,
+  Share,
 } from 'react-native';
 import { useWallet } from '../contexts/WalletContext';
 import { useDossier } from '../contexts/DossierContext';
 import { useTheme } from '../contexts/ThemeContext';
-import type { Dossier } from '../types/dossier';
 
 export const CheckInScreen: React.FC = () => {
   const { address, isConnected, connectBurnerWallet } = useWallet();
-  const { dossiers, isLoading, loadDossiers, checkIn, checkInAll } = useDossier();
+  const { dossiers, isLoading, loadDossiers, checkInAll } = useDossier();
   const { theme } = useTheme();
+  const [isCheckingIn, setIsCheckingIn] = useState(false);
+  const [systemEnabled, setSystemEnabled] = useState(true);
+  const [currentTime, setCurrentTime] = useState(new Date());
 
   useEffect(() => {
     // Auto-connect burner wallet on mount if not connected
@@ -33,127 +36,117 @@ export const CheckInScreen: React.FC = () => {
     }
   }, [isConnected]);
 
-  /**
-   * Handle check-in to a specific dossier
-   */
-  const handleCheckIn = async (dossierId: bigint) => {
-    const result = await checkIn(dossierId);
-    if (result.success) {
-      console.log('✅ Check-in successful');
-    } else {
-      console.error('❌ Check-in failed:', result.error);
-    }
-  };
+  // Update time every second for countdown
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   /**
-   * Handle check-in to all dossiers
+   * Get countdown time until next check-in required
    */
-  const handleCheckInAll = async () => {
-    const result = await checkInAll();
-    if (result.success) {
-      console.log('✅ Check-in all successful');
-    } else {
-      console.error('❌ Check-in all failed:', result.error);
-    }
-  };
-
-  /**
-   * Render empty state
-   */
-  const renderEmptyState = () => {
-    if (isLoading) {
-      return (
-        <View style={styles.emptyContainer}>
-          <ActivityIndicator size="large" color={theme.colors.primary} />
-          <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>Loading dossiers...</Text>
-        </View>
-      );
+  const getCountdownTime = () => {
+    if (!dossiers.length) {
+      return { display: '--:--:--', color: 'text-gray-500', isExpired: false };
     }
 
-    return (
-      <View style={styles.emptyContainer}>
-        <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>No Dossiers</Text>
-        <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>Create your first dossier to get started</Text>
-      </View>
-    );
-  };
+    const activeDossiers = dossiers.filter((d) => d.isActive);
+    if (activeDossiers.length === 0) {
+      return { display: 'NO ACTIVE', color: 'text-gray-500', isExpired: false };
+    }
 
-  /**
-   * Render dossier item
-   */
-  const renderDossierItem = ({ item }: { item: Dossier }) => {
+    // Find the dossier that will expire soonest
     const now = Math.floor(Date.now() / 1000);
-    const lastCheckIn = Number(item.lastCheckIn);
-    const interval = Number(item.checkInInterval);
-    const nextCheckInDue = lastCheckIn + interval;
-    const timeUntilDue = nextCheckInDue - now;
-    const isOverdue = timeUntilDue < 0;
+    let shortestTime = Infinity;
 
-    // Format time
-    const formatTime = (seconds: number) => {
-      const abs = Math.abs(seconds);
-      if (abs < 60) return `${abs}s`;
-      if (abs < 3600) return `${Math.floor(abs / 60)}m`;
-      if (abs < 86400) return `${Math.floor(abs / 3600)}h`;
-      return `${Math.floor(abs / 86400)}d`;
+    for (const dossier of activeDossiers) {
+      const lastCheckIn = Number(dossier.lastCheckIn);
+      const interval = Number(dossier.checkInInterval);
+      const nextCheckInDue = lastCheckIn + interval;
+      const timeUntilDue = nextCheckInDue - now;
+
+      if (timeUntilDue < shortestTime) {
+        shortestTime = timeUntilDue;
+      }
+    }
+
+    if (shortestTime < 0) {
+      return { display: 'EXPIRED', color: 'text-red-500', isExpired: true };
+    }
+
+    // Format as HH:MM:SS
+    const hours = Math.floor(shortestTime / 3600);
+    const minutes = Math.floor((shortestTime % 3600) / 60);
+    const seconds = shortestTime % 60;
+    const formatted = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+
+    return {
+      display: formatted,
+      color: shortestTime < 3600 ? 'text-orange-500' : 'text-green-500',
+      isExpired: false
     };
-
-    return (
-      <View style={[styles.dossierCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
-        <View style={styles.dossierHeader}>
-          <Text style={[styles.dossierName, { color: theme.colors.text }]}>{item.name}</Text>
-          <View
-            style={[
-              styles.statusBadge,
-              !item.isActive && styles.statusBadgePaused,
-              isOverdue && styles.statusBadgeOverdue,
-            ]}>
-            <Text style={styles.statusText}>
-              {!item.isActive ? 'PAUSED' : isOverdue ? 'OVERDUE' : 'ACTIVE'}
-            </Text>
-          </View>
-        </View>
-
-        {item.description && (
-          <Text style={[styles.dossierDescription, { color: theme.colors.textSecondary }]} numberOfLines={2}>
-            {item.description}
-          </Text>
-        )}
-
-        <View style={styles.dossierInfo}>
-          <Text style={[styles.infoLabel, { color: theme.colors.textSecondary }]}>Files:</Text>
-          <Text style={[styles.infoValue, { color: theme.colors.text }]}>{item.encryptedFileHashes.length}</Text>
-        </View>
-
-        <View style={styles.dossierInfo}>
-          <Text style={[styles.infoLabel, { color: theme.colors.textSecondary }]}>Recipients:</Text>
-          <Text style={[styles.infoValue, { color: theme.colors.text }]}>{item.recipients.length}</Text>
-        </View>
-
-        <View style={styles.dossierInfo}>
-          <Text style={[styles.infoLabel, { color: theme.colors.textSecondary }]}>Check-in interval:</Text>
-          <Text style={[styles.infoValue, { color: theme.colors.text }]}>{formatTime(interval)}</Text>
-        </View>
-
-        <View style={styles.dossierInfo}>
-          <Text style={[styles.infoLabel, { color: theme.colors.textSecondary }]}>
-            {isOverdue ? 'Overdue by:' : 'Next check-in in:'}
-          </Text>
-          <Text style={[styles.infoValue, { color: theme.colors.text }, isOverdue && styles.overdueText]}>
-            {formatTime(timeUntilDue)}
-          </Text>
-        </View>
-
-        {item.isActive && (
-          <TouchableOpacity
-            style={[styles.checkInButton, { backgroundColor: theme.colors.primary }, isOverdue && styles.checkInButtonUrgent]}
-            onPress={() => handleCheckIn(item.id)}>
-            <Text style={styles.checkInButtonText}>Check In</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-    );
   };
+
+  /**
+   * Get time since last check-in
+   */
+  const getTimeSinceLastCheckIn = () => {
+    if (!dossiers.length) return '--';
+
+    const activeDossiers = dossiers.filter((d) => d.isActive);
+    if (activeDossiers.length === 0) return '--';
+
+    // Find most recent check-in
+    const now = Math.floor(Date.now() / 1000);
+    let mostRecent = 0;
+
+    for (const dossier of activeDossiers) {
+      const lastCheckIn = Number(dossier.lastCheckIn);
+      if (lastCheckIn > mostRecent) {
+        mostRecent = lastCheckIn;
+      }
+    }
+
+    const elapsed = now - mostRecent;
+
+    if (elapsed < 60) return `${elapsed}s`;
+    if (elapsed < 3600) return `${Math.floor(elapsed / 60)}m`;
+    if (elapsed < 86400) return `${Math.floor(elapsed / 3600)}h`;
+    return `${Math.floor(elapsed / 86400)}d`;
+  };
+
+  /**
+   * Handle system-level check-in (all dossiers)
+   */
+  const handleCheckIn = async () => {
+    setIsCheckingIn(true);
+    try {
+      const result = await checkInAll();
+      if (result.success) {
+        console.log('✅ Check-in all successful');
+      } else {
+        console.error('❌ Check-in all failed:', result.error);
+      }
+    } finally {
+      setIsCheckingIn(false);
+    }
+  };
+
+  /**
+   * Handle share status
+   */
+  const handleShareStatus = async () => {
+    try {
+      await Share.share({
+        message: `Check my Canary status: https://canary.app/status/${address}`,
+      });
+    } catch (error) {
+      console.error('Failed to share:', error);
+    }
+  };
+
+  const countdown = getCountdownTime();
+  const activeDossierCount = dossiers.filter((d) => d.isActive).length;
 
   // If not connected, show connection screen
   if (!isConnected) {
@@ -170,32 +163,148 @@ export const CheckInScreen: React.FC = () => {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      {/* Header */}
-      <View style={[styles.header, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.border }]}>
-        <Text style={[styles.headerTitle, { color: theme.colors.text }]}>My Dossiers</Text>
-        <Text style={[styles.headerAddress, { color: theme.colors.textSecondary }]}>
-          {address?.slice(0, 6)}...{address?.slice(-4)}
-        </Text>
-      </View>
-
-      {/* Check-in all button */}
-      {dossiers.length > 0 && (
-        <TouchableOpacity style={[styles.checkInAllButton, { backgroundColor: theme.colors.primary }]} onPress={handleCheckInAll}>
-          <Text style={styles.checkInAllButtonText}>Check In to All</Text>
-        </TouchableOpacity>
-      )}
-
-      {/* Dossiers list */}
-      <FlatList
-        data={dossiers}
-        renderItem={renderDossierItem}
-        keyExtractor={(item) => item.id.toString()}
-        contentContainerStyle={styles.listContent}
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
         refreshControl={
           <RefreshControl refreshing={isLoading} onRefresh={loadDossiers} colors={[theme.colors.primary]} />
-        }
-        ListEmptyComponent={renderEmptyState}
-      />
+        }>
+        {/* Page Header */}
+        <View style={[styles.pageHeader, { borderBottomColor: theme.colors.border }]}>
+          <Text style={[styles.pageTitle, { color: theme.colors.text }]}>CHECK IN</Text>
+          <Text style={[styles.pageSubtitle, { color: theme.colors.textSecondary }]}>
+            Maintain your system status and manage your encrypted documents
+          </Text>
+        </View>
+
+        {isLoading ? (
+          // Loading State
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={theme.colors.primary} />
+            <Text style={[styles.loadingText, { color: theme.colors.textSecondary }]}>Loading system status...</Text>
+          </View>
+        ) : dossiers.length > 0 ? (
+          // Main Content
+          <View style={styles.content}>
+            {/* System Control Card */}
+            <View style={[styles.systemCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+              {/* Header with Toggle */}
+              <View style={[styles.systemCardHeader, { borderBottomColor: theme.colors.border }]}>
+                <Text style={[styles.systemCardLabel, { color: theme.colors.textSecondary }]}>SYSTEM CONTROL</Text>
+                <TouchableOpacity
+                  style={[styles.toggle, systemEnabled ? styles.toggleOn : styles.toggleOff]}
+                  onPress={() => setSystemEnabled(!systemEnabled)}>
+                  <View style={[styles.toggleThumb, systemEnabled && styles.toggleThumbOn]} />
+                  <Text style={styles.toggleLabel}>{systemEnabled ? 'ON' : 'OFF'}</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Status Display */}
+              <View style={styles.systemCardBody}>
+                <Text
+                  style={[
+                    styles.statusText,
+                    systemEnabled ? { color: theme.colors.text } : { color: theme.colors.textSecondary },
+                  ]}>
+                  {systemEnabled ? 'ACTIVE' : 'INACTIVE'}
+                </Text>
+
+                {/* Check In Button */}
+                <TouchableOpacity
+                  style={[
+                    styles.checkInButton,
+                    systemEnabled && !isCheckingIn && activeDossierCount > 0
+                      ? { backgroundColor: theme.colors.text, borderColor: theme.colors.text }
+                      : styles.checkInButtonDisabled,
+                  ]}
+                  onPress={handleCheckIn}
+                  disabled={!systemEnabled || isCheckingIn || activeDossierCount === 0}>
+                  {isCheckingIn ? (
+                    <View style={styles.checkInButtonContent}>
+                      <ActivityIndicator size="small" color="#FFFFFF" />
+                      <Text style={styles.checkInButtonText}>CHECKING IN...</Text>
+                    </View>
+                  ) : (
+                    <View style={styles.checkInButtonContent}>
+                      <Text style={styles.checkInIcon}>✓</Text>
+                      <Text style={styles.checkInButtonText}>CHECK IN NOW</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Status Cards */}
+            <View style={styles.statusCards}>
+              {/* System Status Card */}
+              <View style={[styles.statusCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+                <View style={styles.statusCardContent}>
+                  <View style={styles.statusCardInfo}>
+                    <View style={styles.statusCardTitleRow}>
+                      <View style={[styles.statusDot, countdown.isExpired ? styles.statusDotRed : styles.statusDotGreen]} />
+                      <Text style={[styles.statusCardTitle, { color: theme.colors.text }]}>SYSTEM STATUS</Text>
+                    </View>
+                    <Text style={[styles.statusCardSubtitle, { color: theme.colors.textSecondary }]}>
+                      {countdown.isExpired ? 'Check-in required' : 'System healthy'}
+                    </Text>
+                  </View>
+                  <Text
+                    style={[
+                      styles.statusCardValue,
+                      { color: countdown.isExpired ? theme.colors.error : theme.colors.success },
+                    ]}>
+                    {countdown.display}
+                  </Text>
+                </View>
+              </View>
+
+              {/* Last Check-in Card */}
+              <View style={[styles.statusCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+                <View style={styles.statusCardContent}>
+                  <View style={styles.statusCardInfo}>
+                    <Text style={[styles.statusCardTitle, { color: theme.colors.text }]}>LAST CHECK-IN</Text>
+                    <Text style={[styles.statusCardSubtitle, { color: theme.colors.textSecondary }]}>
+                      Time since last activity
+                    </Text>
+                  </View>
+                  <Text style={[styles.statusCardValue, { color: theme.colors.text }]}>{getTimeSinceLastCheckIn()}</Text>
+                </View>
+              </View>
+
+              {/* Active Dossiers Card */}
+              <View style={[styles.statusCard, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+                <View style={styles.statusCardContent}>
+                  <View style={styles.statusCardInfo}>
+                    <Text style={[styles.statusCardTitle, { color: theme.colors.text }]}>ACTIVE DOSSIERS</Text>
+                    <Text style={[styles.statusCardSubtitle, { color: theme.colors.textSecondary }]}>
+                      Protected with encryption
+                    </Text>
+                  </View>
+                  <Text style={[styles.statusCardValueLarge, { color: theme.colors.text }]}>{activeDossierCount}</Text>
+                </View>
+              </View>
+            </View>
+
+            {/* Share Status Button */}
+            <TouchableOpacity
+              style={[styles.shareButton, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}
+              onPress={handleShareStatus}>
+              <Text style={styles.shareIcon}>⤴</Text>
+              <Text style={[styles.shareButtonText, { color: theme.colors.text }]}>SHARE STATUS</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          // No Dossiers State
+          <View style={styles.emptyContainer}>
+            <View style={[styles.emptyIcon, { borderColor: theme.colors.border, backgroundColor: theme.colors.card }]}>
+              <Text style={[styles.emptyIconText, { color: theme.colors.textSecondary }]}>🔒</Text>
+            </View>
+            <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>No Active Dossiers</Text>
+            <Text style={[styles.emptySubtitle, { color: theme.colors.textSecondary }]}>
+              Create your first dossier to start using the check-in system
+            </Text>
+          </View>
+        )}
+      </ScrollView>
     </View>
   );
 };
@@ -203,7 +312,6 @@ export const CheckInScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
   },
   connectContainer: {
     flex: 1,
@@ -214,144 +322,237 @@ const styles = StyleSheet.create({
   connectTitle: {
     fontSize: 48,
     fontWeight: 'bold',
-    color: '#E53935',
     marginBottom: 8,
   },
   connectSubtitle: {
     fontSize: 16,
-    color: '#666',
     marginBottom: 24,
   },
   connectLoader: {
     marginTop: 16,
   },
-  header: {
-    padding: 20,
+  scrollContent: {
+    flexGrow: 1,
+  },
+  pageHeader: {
+    paddingHorizontal: 24,
+    paddingTop: 32,
+    paddingBottom: 24,
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
-    backgroundColor: '#FAFAFA',
   },
-  headerTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#212121',
-    marginBottom: 4,
+  pageTitle: {
+    fontSize: 36,
+    fontWeight: '700',
+    marginBottom: 8,
+    letterSpacing: -0.5,
   },
-  headerAddress: {
-    fontSize: 14,
-    color: '#666',
-    fontFamily: 'monospace',
-  },
-  checkInAllButton: {
-    backgroundColor: '#E53935',
-    padding: 16,
-    margin: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  checkInAllButtonText: {
-    color: '#FFFFFF',
+  pageSubtitle: {
     fontSize: 16,
-    fontWeight: '600',
+    lineHeight: 24,
   },
-  listContent: {
-    padding: 16,
-  },
-  emptyContainer: {
+  loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     paddingVertical: 80,
   },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#212121',
-    marginBottom: 8,
-  },
-  emptyText: {
+  loadingText: {
     fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
+    marginTop: 16,
   },
-  dossierCard: {
-    backgroundColor: '#FFFFFF',
+  content: {
+    padding: 24,
+  },
+  systemCard: {
     borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#E0E0E0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    overflow: 'hidden',
+    marginBottom: 32,
   },
-  dossierHeader: {
+  systemCardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
   },
-  dossierName: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#212121',
-    flex: 1,
-  },
-  statusBadge: {
-    backgroundColor: '#4CAF50',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-  },
-  statusBadgePaused: {
-    backgroundColor: '#FF9800',
-  },
-  statusBadgeOverdue: {
-    backgroundColor: '#E53935',
-  },
-  statusText: {
-    color: '#FFFFFF',
+  systemCardLabel: {
     fontSize: 12,
     fontWeight: '600',
+    letterSpacing: 1,
   },
-  dossierDescription: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 12,
+  toggle: {
+    width: 56,
+    height: 28,
+    borderRadius: 14,
+    padding: 2,
+    justifyContent: 'center',
   },
-  dossierInfo: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 6,
+  toggleOn: {
+    backgroundColor: '#4CAF50',
   },
-  infoLabel: {
-    fontSize: 14,
-    color: '#666',
+  toggleOff: {
+    backgroundColor: '#9E9E9E',
   },
-  infoValue: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#212121',
+  toggleThumb: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    position: 'absolute',
+    left: 2,
   },
-  overdueText: {
-    color: '#E53935',
-    fontWeight: '600',
+  toggleThumbOn: {
+    left: 30,
+  },
+  toggleLabel: {
+    position: 'absolute',
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    left: 8,
+    right: 8,
+    textAlign: 'center',
+  },
+  systemCardBody: {
+    paddingHorizontal: 20,
+    paddingVertical: 32,
+    alignItems: 'center',
+  },
+  statusText: {
+    fontSize: 48,
+    fontWeight: '700',
+    marginBottom: 32,
+    letterSpacing: -1,
   },
   checkInButton: {
-    backgroundColor: '#E53935',
-    padding: 12,
+    width: '100%',
+    maxWidth: 400,
+    paddingVertical: 16,
+    paddingHorizontal: 32,
     borderRadius: 8,
+    borderWidth: 1,
     alignItems: 'center',
-    marginTop: 12,
   },
-  checkInButtonUrgent: {
-    backgroundColor: '#D32F2F',
+  checkInButtonDisabled: {
+    backgroundColor: '#E0E0E0',
+    borderColor: '#E0E0E0',
+  },
+  checkInButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  checkInIcon: {
+    fontSize: 20,
+    color: '#FFFFFF',
+    fontWeight: '700',
   },
   checkInButtonText: {
-    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
+    color: '#FFFFFF',
+    letterSpacing: 1.5,
+  },
+  statusCards: {
+    gap: 12,
+    marginBottom: 24,
+  },
+  statusCard: {
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 20,
+  },
+  statusCardContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  statusCardTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 4,
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  statusDotGreen: {
+    backgroundColor: '#4CAF50',
+  },
+  statusDotRed: {
+    backgroundColor: '#E53935',
+  },
+  statusCardInfo: {
+    flex: 1,
+    marginRight: 16,
+  },
+  statusCardTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    letterSpacing: 1,
+    marginBottom: 4,
+  },
+  statusCardSubtitle: {
+    fontSize: 12,
+  },
+  statusCardValue: {
+    fontSize: 16,
+    fontWeight: '700',
+    fontFamily: 'monospace',
+  },
+  statusCardValueLarge: {
+    fontSize: 28,
+    fontWeight: '700',
+  },
+  shareButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    gap: 12,
+  },
+  shareIcon: {
+    fontSize: 20,
+  },
+  shareButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    letterSpacing: 1.5,
+  },
+  emptyContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 80,
+    paddingHorizontal: 24,
+  },
+  emptyIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 24,
+  },
+  emptyIconText: {
+    fontSize: 40,
+  },
+  emptyTitle: {
+    fontSize: 24,
+    fontWeight: '600',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  emptySubtitle: {
+    fontSize: 16,
+    textAlign: 'center',
+    lineHeight: 24,
   },
 });
