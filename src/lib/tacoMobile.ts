@@ -80,19 +80,39 @@ class TacoMobileService {
   }
 
   /**
-   * Fetch DKG public key from Porter
+   * Fetch DKG public key from Coordinator contract on Polygon Amoy
    */
   private async fetchDkgPublicKey(ritualId: number): Promise<Uint8Array> {
-    const response = await fetch(
-      `${PORTER_BASE_URL}/rituals/${ritualId}/dkg_public_key`
-    );
+    console.log(`🔗 Fetching DKG public key from Coordinator contract for ritual ${ritualId}...`);
 
-    if (!response.ok) {
-      throw new Error(`Failed to fetch DKG public key: ${response.statusText}`);
+    // Connect to Polygon Amoy where TACo infrastructure exists
+    const provider = new ethers.providers.JsonRpcProvider('https://rpc-amoy.polygon.technology/');
+
+    // Coordinator contract address on Polygon Amoy (tapir domain)
+    const coordinatorAddress = '0xE690b6bCC0616Dc5294fF84ff4e00335cA52C388';
+
+    // Correct ABI for Tapir Coordinator contract
+    // publicKey is a struct (G1Point) with word0 (bytes32) and word1 (bytes16) = 48 bytes total
+    const coordinatorAbi = [
+      'function rituals(uint256 index) view returns (address initiator, uint32 initTimestamp, uint32 endTimestamp, uint16 totalTranscripts, uint16 totalAggregations, address authority, uint16 dkgSize, uint16 threshold, bool aggregationMismatch, address accessController, tuple(bytes32 word0, bytes16 word1) publicKey, bytes aggregatedTranscript, address feeModel)'
+    ];
+
+    const coordinator = new ethers.Contract(coordinatorAddress, coordinatorAbi, provider);
+
+    try {
+      const ritual = await coordinator.rituals(ritualId);
+
+      // Combine word0 (32 bytes) and word1 (16 bytes) to get the full 48-byte BLS12-381 G1 point
+      const word0 = ethers.utils.arrayify(ritual.publicKey.word0);
+      const word1 = ethers.utils.arrayify(ritual.publicKey.word1);
+      const publicKeyBytes = new Uint8Array([...word0, ...word1]);
+
+      console.log(`✅ Fetched DKG public key from contract (${publicKeyBytes.length} bytes)`);
+      return publicKeyBytes;
+    } catch (error) {
+      console.error('❌ Failed to fetch DKG public key from contract:', error);
+      throw new Error(`Failed to fetch DKG public key from Coordinator contract: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
-
-    const data: DkgPublicKeyResponse = await response.json();
-    return hexToBytes(data.dkg_public_key);
   }
 
   /**
