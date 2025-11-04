@@ -9,6 +9,7 @@ import {
   Alert,
   ActivityIndicator,
   Modal,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../contexts/ThemeContext';
@@ -814,6 +815,41 @@ export const CreateDossierScreen = () => {
           <Text style={[styles.termsText, { color: theme.colors.textSecondary }]}>
             You must cryptographically sign the Acceptable Use Policy & Terms of Service before proceeding.
           </Text>
+
+          <View style={styles.documentLinksContainer}>
+            <TouchableOpacity
+              style={[styles.documentLinkButton, {
+                backgroundColor: theme.colors.surface,
+                borderColor: theme.colors.border,
+              }]}
+              onPress={() => {
+                Linking.openURL('https://demo.canaryapp.io/terms-of-service');
+              }}
+            >
+              <Icon name="file-text" size={18} color={theme.colors.primary} />
+              <Text style={[styles.documentLinkText, { color: theme.colors.text }]}>
+                Terms of Service
+              </Text>
+              <Icon name="external-link" size={14} color={theme.colors.textSecondary} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.documentLinkButton, {
+                backgroundColor: theme.colors.surface,
+                borderColor: theme.colors.border,
+              }]}
+              onPress={() => {
+                Linking.openURL('https://demo.canaryapp.io/acceptable-use-policy');
+              }}
+            >
+              <Icon name="file-text" size={18} color={theme.colors.primary} />
+              <Text style={[styles.documentLinkText, { color: theme.colors.text }]}>
+                Acceptable Use Policy
+              </Text>
+              <Icon name="external-link" size={14} color={theme.colors.textSecondary} />
+            </TouchableOpacity>
+          </View>
+
           <TouchableOpacity
             style={[styles.acceptButton, { backgroundColor: theme.colors.primary }]}
             onPress={async () => {
@@ -1382,6 +1418,23 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     marginBottom: 16,
+  },
+  documentLinksContainer: {
+    gap: 12,
+    marginBottom: 20,
+  },
+  documentLinkButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 14,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  documentLinkText: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '500',
   },
   acceptButton: {
     padding: 16,
