@@ -427,6 +427,13 @@ class ContractService {
   }
 
   /**
+   * Get the contract address
+   */
+  getContractAddress(): string {
+    return DOSSIER_V2_ADDRESS;
+  }
+
+  /**
    * Update check-in interval for a dossier
    */
   async updateCheckInInterval(

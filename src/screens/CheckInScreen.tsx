@@ -19,6 +19,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useWallet } from '../contexts/WalletContext';
 import { useDossier } from '../contexts/DossierContext';
 import { useTheme } from '../contexts/ThemeContext';
+import { HourglassButton } from '../components/HourglassButton';
 
 export const CheckInScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
@@ -26,7 +27,7 @@ export const CheckInScreen: React.FC = () => {
   const { dossiers, isLoading, loadDossiers, checkInAll } = useDossier();
   const { theme } = useTheme();
   const [isCheckingIn, setIsCheckingIn] = useState(false);
-  const [systemEnabled, setSystemEnabled] = useState(true);
+  const [systemEnabled, setSystemEnabled] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
 
   useEffect(() => {
@@ -37,6 +38,16 @@ export const CheckInScreen: React.FC = () => {
       });
     }
   }, [isConnected]);
+
+  // Auto-enable/disable system based on active dossiers
+  useEffect(() => {
+    const activeDossierCount = dossiers.filter((d) => d.isActive).length;
+    if (activeDossierCount === 0) {
+      setSystemEnabled(false);
+    } else {
+      setSystemEnabled(true);
+    }
+  }, [dossiers]);
 
   // Update time every second for countdown
   useEffect(() => {
@@ -49,17 +60,18 @@ export const CheckInScreen: React.FC = () => {
    */
   const getCountdownTime = () => {
     if (!dossiers.length) {
-      return { display: '--:--:--', color: 'text-gray-500', isExpired: false };
+      return { display: '--:--:--', color: 'text-gray-500', isExpired: false, progress: 0 };
     }
 
     const activeDossiers = dossiers.filter((d) => d.isActive);
     if (activeDossiers.length === 0) {
-      return { display: 'NO ACTIVE', color: 'text-gray-500', isExpired: false };
+      return { display: 'NO ACTIVE', color: 'text-gray-500', isExpired: false, progress: 0 };
     }
 
     // Find the dossier that will expire soonest
     const now = Math.floor(Date.now() / 1000);
     let shortestTime = Infinity;
+    let shortestInterval = 0;
 
     for (const dossier of activeDossiers) {
       const lastCheckIn = Number(dossier.lastCheckIn);
@@ -69,12 +81,16 @@ export const CheckInScreen: React.FC = () => {
 
       if (timeUntilDue < shortestTime) {
         shortestTime = timeUntilDue;
+        shortestInterval = interval;
       }
     }
 
     if (shortestTime < 0) {
-      return { display: 'EXPIRED', color: 'text-red-500', isExpired: true };
+      return { display: 'EXPIRED', color: 'text-red-500', isExpired: true, progress: 0 };
     }
+
+    // Calculate progress (0-1 where 1 = just checked in, 0 = expired)
+    const progress = Math.max(0, Math.min(1, shortestTime / shortestInterval));
 
     // Format as HH:MM:SS
     const hours = Math.floor(shortestTime / 3600);
@@ -85,7 +101,8 @@ export const CheckInScreen: React.FC = () => {
     return {
       display: formatted,
       color: shortestTime < 3600 ? 'text-orange-500' : 'text-green-500',
-      isExpired: false
+      isExpired: false,
+      progress
     };
   };
 
@@ -202,28 +219,23 @@ export const CheckInScreen: React.FC = () => {
                   {systemEnabled ? 'ACTIVE' : 'INACTIVE'}
                 </Text>
 
-                {/* Check In Button */}
-                <TouchableOpacity
-                  style={[
-                    styles.checkInButton,
-                    systemEnabled && !isCheckingIn && activeDossierCount > 0
-                      ? { backgroundColor: theme.colors.text, borderColor: theme.colors.text }
-                      : styles.checkInButtonDisabled,
-                  ]}
-                  onPress={handleCheckIn}
-                  disabled={!systemEnabled || isCheckingIn || activeDossierCount === 0}>
-                  {isCheckingIn ? (
-                    <View style={styles.checkInButtonContent}>
-                      <ActivityIndicator size="small" color="#FFFFFF" />
-                      <Text style={styles.checkInButtonText}>CHECKING IN...</Text>
-                    </View>
-                  ) : (
-                    <View style={styles.checkInButtonContent}>
-                      <Text style={styles.checkInIcon}>✓</Text>
-                      <Text style={styles.checkInButtonText}>CHECK IN NOW</Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
+                {/* Check In Hourglass Button */}
+                <View style={styles.hourglassContainer}>
+                  <TouchableOpacity
+                    onPress={handleCheckIn}
+                    disabled={!systemEnabled || isCheckingIn || activeDossierCount === 0}
+                    style={styles.hourglassTouchable}>
+                    <HourglassButton
+                      progress={countdown.progress}
+                      isFlipping={isCheckingIn}
+                      size={80}
+                      color={systemEnabled && activeDossierCount > 0 ? theme.colors.text : theme.colors.border}
+                    />
+                  </TouchableOpacity>
+                  <Text style={[styles.checkInButtonText, { color: theme.colors.textSecondary, marginTop: 16 }]}>
+                    {isCheckingIn ? 'CHECKING IN...' : 'TAP TO CHECK IN'}
+                  </Text>
+                </View>
               </View>
             </View>
 
@@ -404,33 +416,16 @@ const styles = StyleSheet.create({
     marginBottom: 32,
     letterSpacing: -1,
   },
-  checkInButton: {
-    width: '100%',
-    maxWidth: 400,
-    paddingVertical: 16,
-    paddingHorizontal: 32,
-    borderRadius: 8,
-    borderWidth: 1,
+  hourglassContainer: {
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  checkInButtonDisabled: {
-    backgroundColor: '#E0E0E0',
-    borderColor: '#E0E0E0',
-  },
-  checkInButtonContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  checkInIcon: {
-    fontSize: 20,
-    color: '#FFFFFF',
-    fontWeight: '700',
+  hourglassTouchable: {
+    padding: 8,
   },
   checkInButtonText: {
-    fontSize: 16,
+    fontSize: 12,
     fontWeight: '600',
-    color: '#FFFFFF',
     letterSpacing: 1.5,
   },
   statusCards: {
