@@ -181,7 +181,6 @@ class TacoMobileService {
 
     // Create ContractCondition JSON matching TACo SDK format
     // Reference: https://docs.taco.build/for-developers/taco-sdk/references/conditions/contractcondition/use-custom-contract-calls
-    // Note: :userAddress is a special placeholder that TACo automatically substitutes
     const conditionJson = {
       version: '1.0.0',
       condition: {
@@ -189,7 +188,7 @@ class TacoMobileService {
         contractAddress: DOSSIER_V2_ADDRESS,
         method: 'shouldDossierStayEncrypted',
         parameters: [
-          ':userAddress',  // TACo automatically substitutes this with requester's address
+          userAddress,  // User address known at encryption time
           dossierId.toString()
         ],
         functionAbi: {
@@ -366,12 +365,6 @@ class TacoMobileService {
       threshold: threshold,
       encrypted_decryption_requests: encryptedRequests,
     };
-    console.log(`📦 Request body type check:`, {
-      isArray: Array.isArray(encryptedRequests),
-      isObject: typeof encryptedRequests === 'object',
-      keys: Object.keys(encryptedRequests),
-      sample: JSON.stringify(requestBody).substring(0, 200)
-    });
 
     // Add timeout to fetch request (300 seconds / 5 minutes)
     const fetchWithTimeout = (url: string, options: any, timeout = 300000) => {
