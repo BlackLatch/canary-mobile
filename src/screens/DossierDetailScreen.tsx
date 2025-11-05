@@ -36,6 +36,7 @@ export const DossierDetailScreen = () => {
   const [dossier, setDossier] = useState<Dossier>(route.params.dossier);
   const [isCheckingIn, setIsCheckingIn] = useState(false);
   const [isDecrypting, setIsDecrypting] = useState(false);
+  const [isReleasing, setIsReleasing] = useState(false);
   const [showEditSchedule, setShowEditSchedule] = useState(false);
   const [showReleaseConfirm, setShowReleaseConfirm] = useState(false);
   const [showDisableConfirm, setShowDisableConfirm] = useState(false);
@@ -175,6 +176,7 @@ export const DossierDetailScreen = () => {
   };
 
   const handleRelease = async () => {
+    setIsReleasing(true);
     try {
       const result = await releaseNow(dossier.id);
       if (result.success) {
@@ -186,6 +188,8 @@ export const DossierDetailScreen = () => {
       }
     } catch (error) {
       showError('An unexpected error occurred');
+    } finally {
+      setIsReleasing(false);
     }
   };
 
@@ -591,32 +595,44 @@ export const DossierDetailScreen = () => {
       >
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: theme.colors.card }]}>
-            <Icon name="alert-circle" size={48} color="#F59E0B" style={styles.modalIcon} />
-            <Text style={[styles.modalTitle, { color: theme.colors.text }]}>Release Dossier Now?</Text>
-            <Text style={[styles.modalDescription, { color: theme.colors.textSecondary }]}>
-              This is a permanent action that cannot be undone. Recipients will immediately be able to access and decrypt the data.
-            </Text>
+            {isReleasing ? (
+              <>
+                <ActivityIndicator size="large" color="#10B981" style={styles.modalIcon} />
+                <Text style={[styles.modalTitle, { color: theme.colors.text }]}>Releasing Dossier...</Text>
+                <Text style={[styles.modalDescription, { color: theme.colors.textSecondary }]}>
+                  Please wait while the transaction is being processed on the blockchain.
+                </Text>
+              </>
+            ) : (
+              <>
+                <Icon name="alert-circle" size={48} color="#F59E0B" style={styles.modalIcon} />
+                <Text style={[styles.modalTitle, { color: theme.colors.text }]}>Release Dossier Now?</Text>
+                <Text style={[styles.modalDescription, { color: theme.colors.textSecondary }]}>
+                  This is a permanent action that cannot be undone. Recipients will immediately be able to access and decrypt the data.
+                </Text>
 
-            <View style={styles.warningList}>
-              <Text style={[styles.warningItem, { color: theme.colors.textSecondary }]}>• Data will be immediately accessible</Text>
-              <Text style={[styles.warningItem, { color: theme.colors.textSecondary }]}>• Action is recorded on blockchain</Text>
-              <Text style={[styles.warningItem, { color: theme.colors.textSecondary }]}>• Cannot be reversed or stopped</Text>
-            </View>
+                <View style={styles.warningList}>
+                  <Text style={[styles.warningItem, { color: theme.colors.textSecondary }]}>• Data will be immediately accessible</Text>
+                  <Text style={[styles.warningItem, { color: theme.colors.textSecondary }]}>• Action is recorded on blockchain</Text>
+                  <Text style={[styles.warningItem, { color: theme.colors.textSecondary }]}>• Cannot be reversed or stopped</Text>
+                </View>
 
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[styles.modalButton, { backgroundColor: theme.colors.border }]}
-                onPress={() => setShowReleaseConfirm(false)}
-              >
-                <Text style={[styles.modalButtonText, { color: theme.colors.text }]}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalButton, { backgroundColor: '#10B981' }]}
-                onPress={handleRelease}
-              >
-                <Text style={[styles.modalButtonText, { color: '#FFFFFF' }]}>Release Now</Text>
-              </TouchableOpacity>
-            </View>
+                <View style={styles.modalButtons}>
+                  <TouchableOpacity
+                    style={[styles.modalButton, { backgroundColor: theme.colors.border }]}
+                    onPress={() => setShowReleaseConfirm(false)}
+                  >
+                    <Text style={[styles.modalButtonText, { color: theme.colors.text }]}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.modalButton, { backgroundColor: '#10B981' }]}
+                    onPress={handleRelease}
+                  >
+                    <Text style={[styles.modalButtonText, { color: '#FFFFFF' }]}>Release Now</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
           </View>
         </View>
       </Modal>
