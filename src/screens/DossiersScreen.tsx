@@ -16,6 +16,7 @@ import {
 import Svg, { Path } from 'react-native-svg';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Icon from 'react-native-vector-icons/Feather';
 import { useDossier } from '../contexts/DossierContext';
 import { useTheme } from '../contexts/ThemeContext';
 import type { Dossier } from '../types/dossier';
@@ -207,23 +208,31 @@ export const DossiersScreen = () => {
   );
 
   const renderEmptyState = () => (
-    <View style={styles.emptyContainer}>
-      <View style={[styles.emptyIcon, {
-        borderColor: theme.colors.border,
-        backgroundColor: theme.colors.card
-      }]}>
-        <Text style={[styles.emptyIconText, { color: theme.colors.textSecondary }]}>🔒</Text>
+    <View style={styles.emptyStateContainer}>
+      <View style={styles.emptyStateContent}>
+        {/* Lock Icon */}
+        <View style={[styles.iconCircle, { borderColor: theme.colors.border }]}>
+          <Icon name="folder" size={48} color={theme.colors.textSecondary} />
+        </View>
+
+        {/* Title */}
+        <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>
+          No Dossiers
+        </Text>
+
+        {/* Subtitle */}
+        <Text style={[styles.emptySubtitle, { color: theme.colors.textSecondary }]}>
+          Create your first dossier to get started
+        </Text>
+
+        {/* Create Button */}
+        <TouchableOpacity
+          style={styles.createButton}
+          onPress={() => navigation.navigate('CreateDossier' as never)}
+        >
+          <Text style={styles.createButtonText}>CREATE DOSSIER</Text>
+        </TouchableOpacity>
       </View>
-      <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>No Dossiers</Text>
-      <Text style={[styles.emptySubtitle, { color: theme.colors.textSecondary }]}>
-        Create your first dossier to get started
-      </Text>
-      <TouchableOpacity
-        style={[styles.createButton, { backgroundColor: theme.colors.primary }]}
-        onPress={() => navigation.navigate('CreateDossier' as never)}
-      >
-        <Text style={styles.createButtonText}>CREATE DOSSIER</Text>
-      </TouchableOpacity>
     </View>
   );
 
@@ -421,44 +430,56 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     letterSpacing: 1.5,
   },
-  emptyContainer: {
-    flex: 1,
+  emptyStateContainer: {
+    flexGrow: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 80,
     paddingHorizontal: 24,
+    minHeight: 400,
   },
-  emptyIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    borderWidth: 2,
+  emptyStateContent: {
     alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 24,
+    maxWidth: 400,
+    width: '100%',
   },
-  emptyIconText: {
-    fontSize: 40,
+  iconCircle: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    borderWidth: 2,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 32,
   },
   emptyTitle: {
-    fontSize: 24,
+    fontSize: 32,
     fontWeight: '700',
-    marginBottom: 8,
+    marginBottom: 12,
+    textAlign: 'center',
   },
   emptySubtitle: {
     fontSize: 16,
     textAlign: 'center',
-    marginBottom: 24,
+    marginBottom: 40,
+    lineHeight: 24,
   },
   createButton: {
-    paddingVertical: 14,
-    paddingHorizontal: 32,
-    borderRadius: 8,
+    backgroundColor: '#E53935',
+    paddingVertical: 16,
+    paddingHorizontal: 48,
+    borderRadius: 12,
+    shadowColor: '#E53935',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+    minWidth: 280,
   },
   createButtonText: {
     color: '#FFFFFF',
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '700',
-    letterSpacing: 1.5,
+    textAlign: 'center',
+    letterSpacing: 0.5,
   },
 });
