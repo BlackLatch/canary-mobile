@@ -6,8 +6,8 @@ import {
   ScrollView,
   TouchableOpacity,
   Platform,
-  Linking,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -49,6 +49,7 @@ export const DecryptionProgressScreen = () => {
 
   const [files, setFiles] = useState<DecryptedFile[]>([]);
   const [isDecrypting, setIsDecrypting] = useState(true);
+  const [isLoadingManifest, setIsLoadingManifest] = useState(true);
 
   useEffect(() => {
     startDecryption();
@@ -102,6 +103,7 @@ export const DecryptionProgressScreen = () => {
       }));
 
       setFiles(initialFiles);
+      setIsLoadingManifest(false);
 
       // Step 3: Decrypt each file using manifest metadata
       for (let i = 0; i < manifest.files.length; i++) {
@@ -136,8 +138,9 @@ export const DecryptionProgressScreen = () => {
       setIsDecrypting(false);
     } catch (error: any) {
       console.error('❌ Failed to decrypt manifest or files:', error);
+      setIsLoadingManifest(false);
       setIsDecrypting(false);
-      // Could add a global error state here
+      Alert.alert('Error', 'Failed to decrypt dossier files. Please try again.');
     }
   };
 
@@ -169,40 +172,21 @@ export const DecryptionProgressScreen = () => {
     return `${(bytes / Math.pow(k, i)).toFixed(2)} ${sizes[i]}`;
   };
 
-  const handlePlayAudio = async (file: DecryptedFile) => {
+  const handleFileOpen = async (file: DecryptedFile) => {
     if (!file.localPath) return;
     try {
-      // Open with default media player
-      await Linking.openURL(`file://${file.localPath}`);
-    } catch (error) {
-      console.error('Failed to play audio:', error);
-      Alert.alert('Error', 'Failed to open audio file');
-    }
-  };
-
-  const handleViewImage = async (file: DecryptedFile) => {
-    if (!file.localPath) return;
-    try {
-      // Open with default image viewer
-      await Linking.openURL(`file://${file.localPath}`);
-    } catch (error) {
-      console.error('Failed to view image:', error);
-      Alert.alert('Error', 'Failed to open image file');
-    }
-  };
-
-  const handleDownload = async (file: DecryptedFile) => {
-    if (!file.localPath) return;
-    try {
+      // Use Share API which works reliably on both simulator and device
+      // User can choose to open with default app or share to other apps
       await Share.open({
         url: `file://${file.localPath}`,
-        title: 'Share file',
+        title: file.fileType === 'audio' ? 'Open Audio' : file.fileType === 'image' ? 'Open Image' : 'Open File',
         subject: file.fileName,
+        failOnCancel: false,
       });
     } catch (error: any) {
       if (error.message !== 'User did not share') {
-        console.error('Failed to share file:', error);
-        Alert.alert('Error', 'Failed to share file');
+        console.error('Failed to open file:', error);
+        Alert.alert('Error', `Failed to open ${file.fileName}`);
       }
     }
   };
@@ -211,24 +195,14 @@ export const DecryptionProgressScreen = () => {
     if (fileType === 'audio') return 'play';
     if (fileType === 'video') return 'play';
     if (fileType === 'image') return 'eye';
-    return 'download';
+    return 'file';
   };
 
   const getFileActionLabel = (fileType?: string): string => {
     if (fileType === 'audio') return 'Play';
     if (fileType === 'video') return 'Play';
     if (fileType === 'image') return 'View';
-    return 'Download';
-  };
-
-  const handleFileAction = (file: DecryptedFile) => {
-    if (file.fileType === 'audio' || file.fileType === 'video') {
-      handlePlayAudio(file);
-    } else if (file.fileType === 'image') {
-      handleViewImage(file);
-    } else {
-      handleDownload(file);
-    }
+    return 'Open';
   };
 
   const completedCount = files.filter(f => f.status === 'completed').length;
@@ -249,7 +223,18 @@ export const DecryptionProgressScreen = () => {
       </View>
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
-        {files.map((file) => (
+        {isLoadingManifest ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={theme.colors.primary} />
+            <Text style={[styles.loadingText, { color: theme.colors.text }]}>
+              Loading files...
+            </Text>
+            <Text style={[styles.loadingSubtext, { color: theme.colors.textSecondary }]}>
+              Decrypting manifest
+            </Text>
+          </View>
+        ) : (
+          files.map((file) => (
           <View key={file.index} style={[styles.fileCard, { backgroundColor: theme.colors.card }]}>
             <View style={styles.fileHeader}>
               <View style={styles.fileIconContainer}>
@@ -287,7 +272,7 @@ export const DecryptionProgressScreen = () => {
               <View style={styles.actionsContainer}>
                 <TouchableOpacity
                   style={[styles.actionButton, { backgroundColor: theme.colors.primary }]}
-                  onPress={() => handleFileAction(file)}
+                  onPress={() => handleFileOpen(file)}
                 >
                   <Icon name={getFileActionIcon(file.fileType)} size={16} color="#FFFFFF" />
                   <Text style={styles.actionButtonText}>{getFileActionLabel(file.fileType)}</Text>
@@ -295,7 +280,7 @@ export const DecryptionProgressScreen = () => {
 
                 <TouchableOpacity
                   style={[styles.actionButton, styles.secondaryActionButton, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
-                  onPress={() => handleDownload(file)}
+                  onPress={() => handleFileOpen(file)}
                 >
                   <Icon name="share" size={16} color={theme.colors.text} />
                   <Text style={[styles.actionButtonText, { color: theme.colors.text }]}>Share</Text>
@@ -303,7 +288,8 @@ export const DecryptionProgressScreen = () => {
               </View>
             )}
           </View>
-        ))}
+        ))
+        )}
       </ScrollView>
 
       {!isDecrypting && (
@@ -350,6 +336,9 @@ const styles = StyleSheet.create({
   progressText: { fontSize: 12, marginTop: 6 },
   errorContainer: { marginTop: 8, padding: 8, backgroundColor: '#FEE2E2', borderRadius: 6 },
   errorText: { fontSize: 12, color: '#EF4444' },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 80 },
+  loadingText: { fontSize: 18, fontWeight: '600', marginTop: 16 },
+  loadingSubtext: { fontSize: 14, marginTop: 8 },
   actionsContainer: { flexDirection: 'row', gap: 8, marginTop: 12 },
   actionButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, borderRadius: 8 },
   secondaryActionButton: { borderWidth: 1 },
