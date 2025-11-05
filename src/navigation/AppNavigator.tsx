@@ -9,6 +9,7 @@ import { MonitorScreen } from '../screens/MonitorScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
 import { CreateDossierScreen } from '../screens/CreateDossierScreen';
 import { DossierDetailScreen } from '../screens/DossierDetailScreen';
+import { DecryptionProgressScreen } from '../screens/DecryptionProgressScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -101,6 +102,13 @@ export const AppNavigator = () => {
       <Stack.Screen
         name="DossierDetail"
         component={DossierDetailScreen}
+        options={{
+          presentation: 'card',
+        }}
+      />
+      <Stack.Screen
+        name="DecryptionProgress"
+        component={DecryptionProgressScreen}
         options={{
           presentation: 'card',
         }}

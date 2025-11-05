@@ -208,7 +208,20 @@ export const DossierDetailScreen = () => {
     }
   };
 
-  const handleDecrypt = async () => {
+  const handleDecrypt = () => {
+    if (!dossier.encryptedFileHashes || dossier.encryptedFileHashes.length === 0) {
+      showError('No encrypted files found in this dossier');
+      return;
+    }
+
+    // Navigate to dedicated decryption progress screen
+    navigation.navigate('DecryptionProgress' as never, {
+      dossierId: dossier.id.toString(),
+      encryptedFileHashes: dossier.encryptedFileHashes,
+    } as never);
+  };
+
+  const handleDecryptOLD = async () => {
     if (!dossier.encryptedFileHashes || dossier.encryptedFileHashes.length === 0) {
       showError('No encrypted files found in this dossier');
       return;
