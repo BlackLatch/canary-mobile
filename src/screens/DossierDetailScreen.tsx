@@ -403,8 +403,10 @@ export const DossierDetailScreen = () => {
             {dossier.encryptedFileHashes.map((ipfsHash, index) => (
               <View key={index} style={[styles.fileItem, { borderTopColor: theme.colors.border }]}>
                 <View style={styles.fileHeader}>
-                  <Icon name="file" size={16} color={theme.colors.primary} />
-                  <Text style={[styles.fileNumber, { color: theme.colors.text }]}>File #{index + 1}</Text>
+                  <Icon name={index === 0 ? "list" : "file"} size={16} color={theme.colors.primary} />
+                  <Text style={[styles.fileNumber, { color: theme.colors.text }]}>
+                    {index === 0 ? 'Manifest' : `File #${index}`}
+                  </Text>
                 </View>
                 <Text style={[styles.fileHash, { color: theme.colors.textSecondary }]} numberOfLines={1}>
                   {ipfsHash}

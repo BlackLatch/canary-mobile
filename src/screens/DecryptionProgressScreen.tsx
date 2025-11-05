@@ -76,7 +76,12 @@ export const DecryptionProgressScreen = () => {
       const manifestHash = encryptedFileHashes[0];
       const encryptedManifest = await retrieveFromPinata(manifestHash);
       const decryptedManifest = await decryptFile(encryptedManifest);
-      const manifestJson = new TextDecoder().decode(decryptedManifest);
+
+      // Convert Uint8Array to string (TextDecoder not available in React Native)
+      let manifestJson = '';
+      for (let i = 0; i < decryptedManifest.length; i++) {
+        manifestJson += String.fromCharCode(decryptedManifest[i]);
+      }
       const manifest: DossierManifest = JSON.parse(manifestJson);
 
       console.log('✅ Manifest decrypted:', manifest);
