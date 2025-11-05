@@ -25,8 +25,8 @@ export const MonitorScreen = () => {
     let minDays = Infinity;
 
     activeDossiers.forEach(dossier => {
-      const lastCheckIn = dossier.lastCheckIn || dossier.createdAt;
-      const nextCheckIn = lastCheckIn + dossier.checkInFrequency;
+      const lastCheckIn = Number(dossier.lastCheckIn || 0);
+      const nextCheckIn = lastCheckIn + Number(dossier.checkInInterval);
       const daysRemaining = Math.ceil((nextCheckIn - now) / 86400);
       if (daysRemaining < minDays) {
         minDays = daysRemaining;

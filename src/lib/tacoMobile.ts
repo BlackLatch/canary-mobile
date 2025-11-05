@@ -172,46 +172,47 @@ class TacoMobileService {
   }
 
   /**
-   * Create RPC condition JSON for DossierV2 contract
-   * This mimics the taco-web RpcCondition but as JSON format
+   * Create ContractCondition for DossierV2 contract
+   * Uses TACo's ContractCondition format with custom function ABI
    */
   private createDossierConditionJson(userAddress: string, dossierId: bigint): string {
-    console.log(`🔒 Creating RPC Dossier condition: user=${userAddress}, dossier=${dossierId.toString()}`);
+    console.log(`🔒 Creating Contract Dossier condition: user=${userAddress}, dossier=${dossierId.toString()}`);
     console.log(`📍 Contract: ${DOSSIER_V2_ADDRESS} on Status Network Sepolia`);
 
-    // Encode function call: shouldDossierStayEncrypted(address,uint256)
-    const functionSelector = ethers.utils.id('shouldDossierStayEncrypted(address,uint256)').slice(0, 10);
-    const encodedParams = ethers.utils.defaultAbiCoder.encode(
-      ['address', 'uint256'],
-      [userAddress, dossierId.toString()]
-    ).slice(2);
-    const callData = functionSelector + encodedParams;
-
-    // Create RPC condition JSON matching taco-web format
-    const condition = {
+    // Create ContractCondition JSON matching TACo SDK format
+    // Reference: https://docs.taco.build/for-developers/taco-sdk/references/conditions/contractcondition/use-custom-contract-calls
+    // Note: :userAddress is a special placeholder that TACo automatically substitutes
+    const conditionJson = {
       version: '1.0.0',
       condition: {
-        conditionType: 'rpc',
-        chain: STATUS_SEPOLIA.id,
-        method: 'eth_call',
+        conditionType: 'contract',
+        contractAddress: DOSSIER_V2_ADDRESS,
+        method: 'shouldDossierStayEncrypted',
         parameters: [
-          {
-            to: DOSSIER_V2_ADDRESS,
-            data: callData,
-          },
-          'latest',
+          ':userAddress',  // TACo automatically substitutes this with requester's address
+          dossierId.toString()
         ],
+        functionAbi: {
+          inputs: [
+            { internalType: 'address', name: '_user', type: 'address' },
+            { internalType: 'uint256', name: '_dossierId', type: 'uint256' }
+          ],
+          name: 'shouldDossierStayEncrypted',
+          outputs: [{ internalType: 'bool', name: '', type: 'bool' }],
+          stateMutability: 'view',
+          type: 'function',
+          constant: true
+        },
+        chain: STATUS_SEPOLIA.id,
         returnValueTest: {
           comparator: '==',
-          // shouldDossierStayEncrypted returns false (0x0...0) when decryption is allowed
-          value: '0x0000000000000000000000000000000000000000000000000000000000000000',
-        },
-      },
-      // Add RPC endpoint for Status Network
-      ':rpcEndpoint': STATUS_SEPOLIA.rpcUrl,
+          // shouldDossierStayEncrypted returns false when decryption is allowed
+          value: false,
+        }
+      }
     };
 
-    return JSON.stringify(condition);
+    return JSON.stringify(conditionJson);
   }
 
   /**
@@ -338,8 +339,16 @@ class TacoMobileService {
       try {
         const ursulaPublicKey = hexToBytes(participant.decryption_request_static_key);
         const encryptedRequest = await request.createEncryptedRequestForUrsula(ursulaPublicKey);
+
         // Porter expects base64-encoded encrypted requests
-        encryptedRequests[participant.provider] = Buffer.from(encryptedRequest).toString('base64');
+        // Convert Uint8Array to base64 using btoa (works in React Native)
+        let binaryString = '';
+        for (let i = 0; i < encryptedRequest.length; i++) {
+          binaryString += String.fromCharCode(encryptedRequest[i]);
+        }
+        const base64Request = btoa(binaryString);
+
+        encryptedRequests[participant.provider] = base64Request;
         console.log(`✅ Created encrypted request for ${participant.provider}`);
       } catch (error) {
         console.warn(`⚠️ Failed to create request for ${participant.provider}:`, error);

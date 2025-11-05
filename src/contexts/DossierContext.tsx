@@ -134,7 +134,13 @@ export const DossierProvider: React.FC<DossierProviderProps> = ({ children }) =>
         return { success: false, error: 'Failed to get signer' };
       }
 
-      // Step 1: Encrypt files with TACo
+      // Step 1: Get next dossier ID by querying current user dossiers
+      console.log('🔍 Querying for next dossier ID...');
+      const currentDossierIds = await contractService.getUserDossierIds(address);
+      const nextDossierId = BigInt(currentDossierIds.length);
+      console.log(`📋 Next dossier ID will be: ${nextDossierId.toString()}`);
+
+      // Step 2: Encrypt files with TACo using the predicted dossier ID
       const encryptedFiles: CommitResult[] = [];
       const traceJsons: TraceJson[] = [];
 
@@ -144,21 +150,21 @@ export const DossierProvider: React.FC<DossierProviderProps> = ({ children }) =>
         // Read file data
         const fileData = await readFileData(file);
 
-        // Create condition (placeholder - will use actual dossier ID after creation)
+        // Create condition with the actual dossier ID
         const condition: DeadmanCondition = {
           type: 'no_checkin',
           duration: `${checkInInterval} seconds`,
-          dossierId: BigInt(0), // Placeholder, will be updated
+          dossierId: nextDossierId,
           userAddress: address,
         };
 
-        // Encrypt file
+        // Encrypt file with the correct dossier ID
         const encryptionResult = await encryptFileWithDossier(
           fileData,
           file.name,
           condition,
           description,
-          BigInt(0), // Placeholder dossier ID
+          nextDossierId,
           address
         );
 
