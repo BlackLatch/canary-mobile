@@ -331,6 +331,7 @@ class TacoMobileService {
     messageKitBytes: Uint8Array
   ): Promise<Uint8Array[]> {
     console.log(`📨 Creating encrypted requests for ${participants.length} Ursulas...`);
+    console.log(`📋 Participant addresses:`, participants.map(p => p.provider));
 
     // Create encrypted decryption requests for all participants
     // Porter expects a mapping from provider address to encrypted request
@@ -338,6 +339,7 @@ class TacoMobileService {
 
     for (const participant of participants) {
       try {
+        console.log(`🔐 Creating request for ${participant.provider}...`);
         const ursulaPublicKey = hexToBytes(participant.decryption_request_static_key);
         const encryptedRequest = await request.createEncryptedRequestForUrsula(ursulaPublicKey);
 
