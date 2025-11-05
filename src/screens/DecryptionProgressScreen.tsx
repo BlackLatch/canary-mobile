@@ -6,10 +6,13 @@ import {
   ScrollView,
   TouchableOpacity,
   Platform,
+  Linking,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Feather';
+import Share from 'react-native-share';
 import { useTheme } from '../contexts/ThemeContext';
 import { retrieveFromPinata } from '../lib/pinata';
 import { decryptFile } from '../lib/tacoMobile';
@@ -166,6 +169,68 @@ export const DecryptionProgressScreen = () => {
     return `${(bytes / Math.pow(k, i)).toFixed(2)} ${sizes[i]}`;
   };
 
+  const handlePlayAudio = async (file: DecryptedFile) => {
+    if (!file.localPath) return;
+    try {
+      // Open with default media player
+      await Linking.openURL(`file://${file.localPath}`);
+    } catch (error) {
+      console.error('Failed to play audio:', error);
+      Alert.alert('Error', 'Failed to open audio file');
+    }
+  };
+
+  const handleViewImage = async (file: DecryptedFile) => {
+    if (!file.localPath) return;
+    try {
+      // Open with default image viewer
+      await Linking.openURL(`file://${file.localPath}`);
+    } catch (error) {
+      console.error('Failed to view image:', error);
+      Alert.alert('Error', 'Failed to open image file');
+    }
+  };
+
+  const handleDownload = async (file: DecryptedFile) => {
+    if (!file.localPath) return;
+    try {
+      await Share.open({
+        url: `file://${file.localPath}`,
+        title: 'Share file',
+        subject: file.fileName,
+      });
+    } catch (error: any) {
+      if (error.message !== 'User did not share') {
+        console.error('Failed to share file:', error);
+        Alert.alert('Error', 'Failed to share file');
+      }
+    }
+  };
+
+  const getFileActionIcon = (fileType?: string): string => {
+    if (fileType === 'audio') return 'play';
+    if (fileType === 'video') return 'play';
+    if (fileType === 'image') return 'eye';
+    return 'download';
+  };
+
+  const getFileActionLabel = (fileType?: string): string => {
+    if (fileType === 'audio') return 'Play';
+    if (fileType === 'video') return 'Play';
+    if (fileType === 'image') return 'View';
+    return 'Download';
+  };
+
+  const handleFileAction = (file: DecryptedFile) => {
+    if (file.fileType === 'audio' || file.fileType === 'video') {
+      handlePlayAudio(file);
+    } else if (file.fileType === 'image') {
+      handleViewImage(file);
+    } else {
+      handleDownload(file);
+    }
+  };
+
   const completedCount = files.filter(f => f.status === 'completed').length;
   const failedCount = files.filter(f => f.status === 'failed').length;
 
@@ -217,6 +282,26 @@ export const DecryptionProgressScreen = () => {
                 <Text style={styles.errorText}>{file.error}</Text>
               </View>
             )}
+
+            {file.status === 'completed' && file.localPath && (
+              <View style={styles.actionsContainer}>
+                <TouchableOpacity
+                  style={[styles.actionButton, { backgroundColor: theme.colors.primary }]}
+                  onPress={() => handleFileAction(file)}
+                >
+                  <Icon name={getFileActionIcon(file.fileType)} size={16} color="#FFFFFF" />
+                  <Text style={styles.actionButtonText}>{getFileActionLabel(file.fileType)}</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.actionButton, styles.secondaryActionButton, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
+                  onPress={() => handleDownload(file)}
+                >
+                  <Icon name="share" size={16} color={theme.colors.text} />
+                  <Text style={[styles.actionButtonText, { color: theme.colors.text }]}>Share</Text>
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
         ))}
       </ScrollView>
@@ -265,6 +350,10 @@ const styles = StyleSheet.create({
   progressText: { fontSize: 12, marginTop: 6 },
   errorContainer: { marginTop: 8, padding: 8, backgroundColor: '#FEE2E2', borderRadius: 6 },
   errorText: { fontSize: 12, color: '#EF4444' },
+  actionsContainer: { flexDirection: 'row', gap: 8, marginTop: 12 },
+  actionButton: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10, borderRadius: 8 },
+  secondaryActionButton: { borderWidth: 1 },
+  actionButtonText: { color: '#FFFFFF', fontSize: 14, fontWeight: '600' },
   footer: { padding: 16, borderTopWidth: 1 },
   summaryContainer: { flexDirection: 'row', gap: 16, marginBottom: 12 },
   summaryItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
