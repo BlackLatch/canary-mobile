@@ -71,6 +71,7 @@ export interface ManifestFileEntry {
   mimeType: string; // MIME type (e.g., "image/jpeg", "application/pdf")
   sizeBytes: number; // File size in bytes
   encryptedFileHash: string; // IPFS CID of the encrypted file
+  storageUrl: string; // Full IPFS gateway URL to access the encrypted file
 }
 
 export interface DossierManifest {

@@ -15,6 +15,7 @@ import { encryptFileWithDossier, commitEncryptedFileToPinata } from '../lib/taco
 import type { CommitResult } from '../lib/tacoMobile';
 import type { Dossier, Address, DeadmanCondition, FileInfo, TraceJson, DossierManifest, ManifestFileEntry } from '../types/dossier';
 import { useWallet } from './WalletContext';
+import { PINATA_CONFIG } from '../constants/taco';
 
 // Operation result types
 interface CreateDossierResult {
@@ -177,13 +178,17 @@ export const DossierProvider: React.FC<DossierProviderProps> = ({ children }) =>
 
       // Step 2.5: Build and encrypt manifest with file metadata
       console.log('📋 Building manifest with file metadata...');
-      const manifestEntries: ManifestFileEntry[] = files.map((file, index) => ({
-        index,
-        originalName: file.name,
-        mimeType: file.type,
-        sizeBytes: file.size,
-        encryptedFileHash: encryptedFiles[index].pinataCid!,
-      }));
+      const manifestEntries: ManifestFileEntry[] = files.map((file, index) => {
+        const cid = encryptedFiles[index].pinataCid!;
+        return {
+          index,
+          originalName: file.name,
+          mimeType: file.type,
+          sizeBytes: file.size,
+          encryptedFileHash: cid,
+          storageUrl: `${PINATA_CONFIG.gateway}/ipfs/${cid}`,
+        };
+      });
 
       const manifest: DossierManifest = {
         version: '1.0.0',
