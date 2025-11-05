@@ -6,7 +6,6 @@ import {
   ScrollView,
   TextInput,
   TouchableOpacity,
-  Alert,
   ActivityIndicator,
   Modal,
   Linking,
@@ -19,6 +18,7 @@ import { useDossier } from '../contexts/DossierContext';
 import { useNavigation } from '@react-navigation/native';
 import { MediaRecorder } from '../components/MediaRecorder';
 import { ErrorDialog } from '../components/ErrorDialog';
+import { SuccessDialog } from '../components/SuccessDialog';
 import DocumentPicker from 'react-native-document-picker';
 
 type ReleaseMode = 'public' | 'contacts';
@@ -43,6 +43,12 @@ export const CreateDossierScreen = () => {
 
   // Error dialog state
   const [errorDialog, setErrorDialog] = useState<{ visible: boolean; message: string }>({
+    visible: false,
+    message: '',
+  });
+
+  // Success dialog state
+  const [successDialog, setSuccessDialog] = useState<{ visible: boolean; message: string }>({
     visible: false,
     message: '',
   });
@@ -83,7 +89,10 @@ export const CreateDossierScreen = () => {
   const handleFileReady = (file: { uri: string; name: string; type: string; size: number }) => {
     setUploadedFiles(prev => [...prev, file]);
     setRecordingMode(null);
-    Alert.alert('Success', `${file.name} has been added to your dossier`);
+    setSuccessDialog({
+      visible: true,
+      message: `${file.name} has been added to your dossier`,
+    });
   };
 
   // Remove uploaded file
@@ -251,11 +260,10 @@ export const CreateDossierScreen = () => {
       );
 
       if (result.success) {
-        Alert.alert(
-          'Success',
-          'Dossier created successfully!',
-          [{ text: 'OK', onPress: () => navigation.goBack() }]
-        );
+        setSuccessDialog({
+          visible: true,
+          message: 'Dossier created successfully!',
+        });
       } else {
         setErrorDialog({ visible: true, message: result.error || 'Failed to create dossier' });
       }
@@ -866,7 +874,7 @@ export const CreateDossierScreen = () => {
             onPress={async () => {
               try {
                 if (!address) {
-                  Alert.alert('Error', 'No wallet connected');
+                  setErrorDialog({ visible: true, message: 'No wallet connected' });
                   return;
                 }
 
@@ -903,7 +911,7 @@ export const CreateDossierScreen = () => {
                 console.log('✅ Terms signed:', signature);
               } catch (error) {
                 console.error('❌ Failed to sign terms:', error);
-                Alert.alert('Error', 'Failed to sign terms. Please try again.');
+                setErrorDialog({ visible: true, message: 'Failed to sign terms. Please try again.' });
               }
             }}
           >
@@ -1144,6 +1152,19 @@ export const CreateDossierScreen = () => {
         visible={errorDialog.visible}
         message={errorDialog.message}
         onDismiss={() => setErrorDialog({ visible: false, message: '' })}
+      />
+
+      {/* Success Dialog */}
+      <SuccessDialog
+        visible={successDialog.visible}
+        message={successDialog.message}
+        onDismiss={() => {
+          setSuccessDialog({ visible: false, message: '' });
+          // If this was the dossier creation success, navigate back
+          if (successDialog.message === 'Dossier created successfully!') {
+            navigation.goBack();
+          }
+        }}
       />
     </SafeAreaView>
   );
