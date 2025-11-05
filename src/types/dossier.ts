@@ -65,6 +65,21 @@ export interface FileInfo {
   type: string;
 }
 
+export interface ManifestFileEntry {
+  index: number; // Position in the dossier's file list
+  originalName: string; // Original filename with extension
+  mimeType: string; // MIME type (e.g., "image/jpeg", "application/pdf")
+  sizeBytes: number; // File size in bytes
+  encryptedFileHash: string; // IPFS CID of the encrypted file
+}
+
+export interface DossierManifest {
+  version: string; // Manifest format version (e.g., "1.0.0")
+  dossierId: string; // ID of the dossier this manifest belongs to
+  created: string; // ISO timestamp of manifest creation
+  files: ManifestFileEntry[]; // Array of file metadata entries
+}
+
 export type WalletType = 'burner' | 'walletconnect' | 'embedded';
 
 export interface WalletState {

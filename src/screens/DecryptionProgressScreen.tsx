@@ -15,6 +15,7 @@ import { retrieveFromPinata } from '../lib/pinata';
 import { decryptFile } from '../lib/tacoMobile';
 import RNFS from 'react-native-fs';
 import { Buffer } from 'buffer';
+import type { DossierManifest } from '../types/dossier';
 
 type FileStatus = 'pending' | 'downloading' | 'decrypting' | 'completed' | 'failed';
 
@@ -47,14 +48,7 @@ export const DecryptionProgressScreen = () => {
   const [isDecrypting, setIsDecrypting] = useState(true);
 
   useEffect(() => {
-    const initialFiles: DecryptedFile[] = encryptedFileHashes.map((hash, index) => ({
-      index,
-      ipfsHash: hash,
-      status: 'pending',
-      progress: 0,
-    }));
-    setFiles(initialFiles);
-    startDecryption(initialFiles);
+    startDecryption();
   }, []);
 
   const updateFileStatus = (index: number, updates: Partial<DecryptedFile>) => {
@@ -63,50 +57,80 @@ export const DecryptionProgressScreen = () => {
     ));
   };
 
-  const getFileTypeFromPath = (path: string): string => {
-    const ext = path.split('.').pop()?.toLowerCase() || '';
-    if (['mp3', 'wav', 'aac', 'm4a'].includes(ext)) return 'audio';
-    if (['mp4', 'mov', 'avi', 'mkv'].includes(ext)) return 'video';
-    if (['jpg', 'jpeg', 'png', 'gif'].includes(ext)) return 'image';
-    if (['pdf'].includes(ext)) return 'pdf';
+  const getMimeTypeCategory = (mimeType: string): string => {
+    if (mimeType.startsWith('audio/')) return 'audio';
+    if (mimeType.startsWith('video/')) return 'video';
+    if (mimeType.startsWith('image/')) return 'image';
+    if (mimeType === 'application/pdf') return 'pdf';
     return 'file';
   };
 
-  const startDecryption = async (initialFiles: DecryptedFile[]) => {
-    const downloadDir = Platform.OS === 'ios' ? RNFS.DocumentDirectoryPath : RNFS.DownloadDirectoryPath;
-    const dossierDir = `${downloadDir}/Canary/Dossier_${dossierId}`;
-    await RNFS.mkdir(dossierDir, { NSURLIsExcludedFromBackupKey: false });
+  const startDecryption = async () => {
+    try {
+      const downloadDir = Platform.OS === 'ios' ? RNFS.DocumentDirectoryPath : RNFS.DownloadDirectoryPath;
+      const dossierDir = `${downloadDir}/Canary/Dossier_${dossierId}`;
+      await RNFS.mkdir(dossierDir, { NSURLIsExcludedFromBackupKey: false });
 
-    for (let i = 0; i < initialFiles.length; i++) {
-      const file = initialFiles[i];
+      // Step 1: Decrypt manifest (first hash)
+      console.log('📋 Decrypting manifest...');
+      const manifestHash = encryptedFileHashes[0];
+      const encryptedManifest = await retrieveFromPinata(manifestHash);
+      const decryptedManifest = await decryptFile(encryptedManifest);
+      const manifestJson = new TextDecoder().decode(decryptedManifest);
+      const manifest: DossierManifest = JSON.parse(manifestJson);
 
-      try {
-        updateFileStatus(i, { status: 'downloading', progress: 0 });
-        const encryptedData = await retrieveFromPinata(file.ipfsHash);
-        updateFileStatus(i, { status: 'downloading', progress: 50, size: encryptedData.length });
+      console.log('✅ Manifest decrypted:', manifest);
+      console.log(`📄 Found ${manifest.files.length} files in manifest`);
 
-        updateFileStatus(i, { status: 'decrypting', progress: 60 });
-        const decryptedData = await decryptFile(encryptedData);
-        updateFileStatus(i, { status: 'decrypting', progress: 90 });
+      // Step 2: Initialize file list with metadata from manifest
+      const initialFiles: DecryptedFile[] = manifest.files.map((fileEntry) => ({
+        index: fileEntry.index,
+        ipfsHash: fileEntry.encryptedFileHash,
+        status: 'pending' as FileStatus,
+        progress: 0,
+        fileName: fileEntry.originalName,
+        fileType: getMimeTypeCategory(fileEntry.mimeType),
+        size: fileEntry.sizeBytes,
+      }));
 
-        const fileName = `file_${i + 1}_decrypted.bin`;
-        const decryptedPath = `${dossierDir}/${fileName}`;
-        await RNFS.writeFile(decryptedPath, Buffer.from(decryptedData).toString('base64'), 'base64');
+      setFiles(initialFiles);
 
-        updateFileStatus(i, {
-          status: 'completed',
-          progress: 100,
-          localPath: decryptedPath,
-          fileName,
-          fileType: getFileTypeFromPath(fileName),
-          size: decryptedData.length
-        });
-      } catch (error: any) {
-        updateFileStatus(i, { status: 'failed', progress: 0, error: error.message || 'Unknown error' });
+      // Step 3: Decrypt each file using manifest metadata
+      for (let i = 0; i < manifest.files.length; i++) {
+        const fileEntry = manifest.files[i];
+
+        try {
+          updateFileStatus(i, { status: 'downloading', progress: 0 });
+          const encryptedData = await retrieveFromPinata(fileEntry.encryptedFileHash);
+          updateFileStatus(i, { status: 'downloading', progress: 50 });
+
+          updateFileStatus(i, { status: 'decrypting', progress: 60 });
+          const decryptedData = await decryptFile(encryptedData);
+          updateFileStatus(i, { status: 'decrypting', progress: 90 });
+
+          // Save with original filename from manifest
+          const decryptedPath = `${dossierDir}/${fileEntry.originalName}`;
+          await RNFS.writeFile(decryptedPath, Buffer.from(decryptedData).toString('base64'), 'base64');
+
+          updateFileStatus(i, {
+            status: 'completed',
+            progress: 100,
+            localPath: decryptedPath,
+          });
+
+          console.log(`✅ Decrypted: ${fileEntry.originalName}`);
+        } catch (error: any) {
+          console.error(`❌ Failed to decrypt ${fileEntry.originalName}:`, error);
+          updateFileStatus(i, { status: 'failed', progress: 0, error: error.message || 'Unknown error' });
+        }
       }
-    }
 
-    setIsDecrypting(false);
+      setIsDecrypting(false);
+    } catch (error: any) {
+      console.error('❌ Failed to decrypt manifest or files:', error);
+      setIsDecrypting(false);
+      // Could add a global error state here
+    }
   };
 
   const getStatusIcon = (status: FileStatus) => {

@@ -13,7 +13,7 @@ import RNFS from 'react-native-fs';
 import { contractService } from '../lib/contract';
 import { encryptFileWithDossier, commitEncryptedFileToPinata } from '../lib/tacoMobile';
 import type { CommitResult } from '../lib/tacoMobile';
-import type { Dossier, Address, DeadmanCondition, FileInfo, TraceJson } from '../types/dossier';
+import type { Dossier, Address, DeadmanCondition, FileInfo, TraceJson, DossierManifest, ManifestFileEntry } from '../types/dossier';
 import { useWallet } from './WalletContext';
 
 // Operation result types
@@ -175,9 +175,54 @@ export const DossierProvider: React.FC<DossierProviderProps> = ({ children }) =>
         traceJsons.push(traceJson);
       }
 
-      // Step 2: Create dossier on-chain with encrypted file hashes
-      const encryptedFileHashes = encryptedFiles.map((f) => f.pinataCid);
+      // Step 2.5: Build and encrypt manifest with file metadata
+      console.log('📋 Building manifest with file metadata...');
+      const manifestEntries: ManifestFileEntry[] = files.map((file, index) => ({
+        index,
+        originalName: file.name,
+        mimeType: file.type,
+        sizeBytes: file.size,
+        encryptedFileHash: encryptedFiles[index].pinataCid!,
+      }));
 
+      const manifest: DossierManifest = {
+        version: '1.0.0',
+        dossierId: nextDossierId.toString(),
+        created: new Date().toISOString(),
+        files: manifestEntries,
+      };
+
+      // Encrypt manifest as JSON file
+      console.log('🔐 Encrypting manifest...');
+      const manifestJson = JSON.stringify(manifest);
+      const manifestBytes = new TextEncoder().encode(manifestJson);
+
+      const manifestCondition: DeadmanCondition = {
+        type: 'no_checkin',
+        duration: `${checkInInterval} seconds`,
+        dossierId: nextDossierId,
+        userAddress: address,
+      };
+
+      const manifestEncryptionResult = await encryptFileWithDossier(
+        manifestBytes,
+        'manifest.json',
+        manifestCondition,
+        `Manifest for ${name}`,
+        nextDossierId,
+        address
+      );
+
+      const { commitResult: manifestCommit } = await commitEncryptedFileToPinata(manifestEncryptionResult);
+      console.log('✅ Manifest encrypted and uploaded:', manifestCommit.pinataCid);
+
+      // Step 3: Create dossier on-chain with manifest hash first, then file hashes
+      const encryptedFileHashes = [
+        manifestCommit.pinataCid!, // Manifest always at index 0
+        ...encryptedFiles.map((f) => f.pinataCid!)
+      ];
+
+      // Step 4: Create dossier on-chain
       // If no recipients specified, add user's own address (public release)
       const finalRecipients = recipients.length === 0 ? [address] : recipients;
       console.log('📋 Final recipients:', finalRecipients);
