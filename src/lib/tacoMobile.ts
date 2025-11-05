@@ -189,7 +189,7 @@ class TacoMobileService {
         method: 'shouldDossierStayEncrypted',
         parameters: [
           userAddress,  // User address known at encryption time
-          dossierId.toString()
+          Number(dossierId)  // Pass as number, not string, for uint256 type
         ],
         functionAbi: {
           inputs: [
@@ -211,7 +211,9 @@ class TacoMobileService {
       }
     };
 
-    return JSON.stringify(conditionJson);
+    const conditionString = JSON.stringify(conditionJson);
+    console.log('📋 Condition JSON:', conditionString);
+    return conditionString;
   }
 
   /**
@@ -397,24 +399,48 @@ class TacoMobileService {
     }
 
     const data = await response.json();
-    console.log(`✅ Porter returned decryption response:`, JSON.stringify(data).substring(0, 200));
+    console.log(`✅ Porter returned decryption response (full):`, JSON.stringify(data, null, 2));
+
+    // Check for errors in response
+    const decryptionResults = data.result?.decryption_results || data;
+    if (decryptionResults.errors && Object.keys(decryptionResults.errors).length > 0) {
+      console.error('❌ Decryption errors from Ursulas:', JSON.stringify(decryptionResults.errors, null, 2));
+    }
 
     // Decrypt the responses from each Ursula
     const shares: Uint8Array[] = [];
 
     // Porter returns encrypted responses that we need to decrypt
-    if (data.encrypted_decryption_responses) {
-      for (let i = 0; i < data.encrypted_decryption_responses.length && i < participants.length; i++) {
+    const encryptedResponses = decryptionResults.encrypted_decryption_responses || data.encrypted_decryption_responses;
+    if (encryptedResponses) {
+      console.log(`📦 Processing ${Object.keys(encryptedResponses).length} encrypted responses`);
+
+      // Match each response to the correct participant by address
+      for (const participant of participants) {
+        const ursulaAddress = participant.provider;
+        const encryptedResponseHex = encryptedResponses[ursulaAddress];
+
+        if (!encryptedResponseHex) {
+          console.log(`⏭️ No response from ${ursulaAddress}, skipping`);
+          continue;
+        }
+
         try {
-          const encryptedResponseHex = data.encrypted_decryption_responses[i];
+          console.log(`🔓 Decrypting response from ${ursulaAddress}...`);
           const encryptedResponse = hexToBytes(encryptedResponseHex);
-          const ursulaPublicKey = hexToBytes(participants[i].decryption_request_static_key);
+          const ursulaPublicKey = hexToBytes(participant.decryption_request_static_key);
 
           const share = await request.decryptUrsulaResponse(encryptedResponse, ursulaPublicKey);
           shares.push(share);
-          console.log(`✅ Decrypted share ${shares.length}/${threshold}`);
+          console.log(`✅ Decrypted share ${shares.length}/${threshold} from ${ursulaAddress}`);
+
+          // Stop once we have enough shares
+          if (shares.length >= threshold) {
+            console.log(`✅ Collected enough shares (${shares.length}/${threshold})`);
+            break;
+          }
         } catch (error) {
-          console.warn(`⚠️ Failed to decrypt response ${i}:`, error);
+          console.warn(`⚠️ Failed to decrypt response from ${ursulaAddress}:`, error);
         }
       }
     }
