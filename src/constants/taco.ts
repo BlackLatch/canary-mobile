@@ -1,10 +1,10 @@
 // TACo (Threshold Access Control) configuration constants
 
-// TACo Domain - using testnet (Tapir domain)
-export const TACO_DOMAIN = 'testnet';
+// TACo Domain - using devnet (Lynx domain)
+export const TACO_DOMAIN = 'lynx';
 
-// Ritual ID for threshold encryption (Tapir testnet)
-export const RITUAL_ID = 6;
+// Ritual ID for threshold encryption (Lynx devnet)
+export const RITUAL_ID = 27;
 
 // TACo operates on Polygon Amoy network
 export const TACO_NETWORK_CHAIN_ID = 80002; // Polygon Amoy

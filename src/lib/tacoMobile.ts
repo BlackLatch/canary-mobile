@@ -17,7 +17,7 @@ import { uploadToPinata, type PinataUploadResult } from './pinata';
 import { Buffer } from 'buffer';
 
 // Porter API endpoints
-const PORTER_BASE_URL = 'https://porter-tapir.nucypher.io';
+const PORTER_BASE_URL = 'https://porter-lynx.nucypher.io';
 
 /**
  * Porter API types
@@ -89,10 +89,10 @@ class TacoMobileService {
     // Connect to Polygon Amoy where TACo infrastructure exists
     const provider = new ethers.providers.JsonRpcProvider('https://rpc-amoy.polygon.technology/');
 
-    // Coordinator contract address on Polygon Amoy (tapir domain)
-    const coordinatorAddress = '0xE690b6bCC0616Dc5294fF84ff4e00335cA52C388';
+    // Coordinator contract address on Polygon Amoy (lynx domain)
+    const coordinatorAddress = '0xE9e94499bB0f67b9DBD75506ec1735486DE57770';
 
-    // Correct ABI for Tapir Coordinator contract
+    // Correct ABI for Lynx Coordinator contract
     // publicKey is a struct (G1Point) with word0 (bytes32) and word1 (bytes16) = 48 bytes total
     const coordinatorAbi = [
       'function rituals(uint256 index) view returns (address initiator, uint32 initTimestamp, uint32 endTimestamp, uint16 totalTranscripts, uint16 totalAggregations, address authority, uint16 dkgSize, uint16 threshold, bool aggregationMismatch, address accessController, tuple(bytes32 word0, bytes16 word1) publicKey, bytes aggregatedTranscript, address feeModel)'
@@ -125,8 +125,8 @@ class TacoMobileService {
     // Connect to Polygon Amoy where TACo infrastructure exists
     const provider = new ethers.providers.JsonRpcProvider('https://rpc-amoy.polygon.technology/');
 
-    // Coordinator contract address on Polygon Amoy (tapir domain)
-    const coordinatorAddress = '0xE690b6bCC0616Dc5294fF84ff4e00335cA52C388';
+    // Coordinator contract address on Polygon Amoy (lynx domain)
+    const coordinatorAddress = '0xE9e94499bB0f67b9DBD75506ec1735486DE57770';
 
     // ABI with rituals() and getParticipants()
     const coordinatorAbi = [
