@@ -427,7 +427,8 @@ class TacoMobileService {
 
         try {
           console.log(`🔓 Decrypting response from ${ursulaAddress}...`);
-          const encryptedResponse = hexToBytes(encryptedResponseHex);
+          // Porter returns base64-encoded responses
+          const encryptedResponse = Uint8Array.from(atob(encryptedResponseHex), c => c.charCodeAt(0));
           const ursulaPublicKey = hexToBytes(participant.decryption_request_static_key);
 
           const share = await request.decryptUrsulaResponse(encryptedResponse, ursulaPublicKey);
