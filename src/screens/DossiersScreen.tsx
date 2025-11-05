@@ -19,6 +19,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Feather';
 import { useDossier } from '../contexts/DossierContext';
 import { useTheme } from '../contexts/ThemeContext';
+import { EmptyState } from '../components/EmptyState';
 import type { Dossier } from '../types/dossier';
 
 export const DossiersScreen = () => {
@@ -207,34 +208,7 @@ export const DossiersScreen = () => {
     </TouchableOpacity>
   );
 
-  const renderEmptyState = () => (
-    <View style={styles.emptyStateContainer}>
-      <View style={styles.emptyStateContent}>
-        {/* Lock Icon */}
-        <View style={[styles.iconCircle, { borderColor: theme.colors.border }]}>
-          <Icon name="folder" size={48} color={theme.colors.textSecondary} />
-        </View>
-
-        {/* Title */}
-        <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>
-          No Dossiers
-        </Text>
-
-        {/* Subtitle */}
-        <Text style={[styles.emptySubtitle, { color: theme.colors.textSecondary }]}>
-          Create your first dossier to get started
-        </Text>
-
-        {/* Create Button */}
-        <TouchableOpacity
-          style={styles.createButton}
-          onPress={() => navigation.navigate('CreateDossier' as never)}
-        >
-          <Text style={styles.createButtonText}>CREATE DOSSIER</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
+  const renderEmptyState = () => <EmptyState />;
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
@@ -429,57 +403,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     letterSpacing: 1.5,
-  },
-  emptyStateContainer: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-    minHeight: 400,
-  },
-  emptyStateContent: {
-    alignItems: 'center',
-    maxWidth: 400,
-    width: '100%',
-  },
-  iconCircle: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    borderWidth: 2,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 32,
-  },
-  emptyTitle: {
-    fontSize: 32,
-    fontWeight: '700',
-    marginBottom: 12,
-    textAlign: 'center',
-  },
-  emptySubtitle: {
-    fontSize: 16,
-    textAlign: 'center',
-    marginBottom: 40,
-    lineHeight: 24,
-  },
-  createButton: {
-    backgroundColor: '#E53935',
-    paddingVertical: 16,
-    paddingHorizontal: 48,
-    borderRadius: 12,
-    shadowColor: '#E53935',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
-    minWidth: 280,
-  },
-  createButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700',
-    textAlign: 'center',
-    letterSpacing: 0.5,
   },
 });

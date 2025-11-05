@@ -20,6 +20,7 @@ import { useWallet } from '../contexts/WalletContext';
 import { useDossier } from '../contexts/DossierContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { HourglassButton } from '../components/HourglassButton';
+import { EmptyState } from '../components/EmptyState';
 
 export const CheckInScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
@@ -323,15 +324,7 @@ export const CheckInScreen: React.FC = () => {
           </View>
         ) : (
           // No Dossiers State
-          <View style={styles.emptyContainer}>
-            <View style={[styles.emptyIcon, { borderColor: theme.colors.border, backgroundColor: theme.colors.card }]}>
-              <Text style={[styles.emptyIconText, { color: theme.colors.textSecondary }]}>🔒</Text>
-            </View>
-            <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>No Active Dossiers</Text>
-            <Text style={[styles.emptySubtitle, { color: theme.colors.textSecondary }]}>
-              Create your first dossier to start using the check-in system
-            </Text>
-          </View>
+          <EmptyState />
         )}
       </ScrollView>
     </View>
@@ -520,35 +513,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     letterSpacing: 1.5,
-  },
-  emptyContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 80,
-    paddingHorizontal: 24,
-  },
-  emptyIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    borderWidth: 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 24,
-  },
-  emptyIconText: {
-    fontSize: 40,
-  },
-  emptyTitle: {
-    fontSize: 24,
-    fontWeight: '600',
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  emptySubtitle: {
-    fontSize: 16,
-    textAlign: 'center',
-    lineHeight: 24,
   },
 });

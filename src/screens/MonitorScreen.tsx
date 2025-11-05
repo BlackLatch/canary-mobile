@@ -7,16 +7,18 @@ import {
   RefreshControl,
   TouchableOpacity,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Feather';
 import { useDossier } from '../contexts/DossierContext';
 import { useTheme } from '../contexts/ThemeContext';
+import { EmptyState } from '../components/EmptyState';
 
 export const MonitorScreen = () => {
   const { dossiers, isLoading, refreshDossiers } = useDossier();
   const { theme } = useTheme();
   const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
 
   const activeDossiers = dossiers.filter(d => d.isActive);
   const inactiveDossiers = dossiers.filter(d => !d.isActive);
@@ -45,9 +47,9 @@ export const MonitorScreen = () => {
   // Show empty state if no dossiers
   if (dossiers.length === 0) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
+      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
         <ScrollView
-          contentContainerStyle={styles.emptyStateContainer}
+          contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + 16 }]}
           refreshControl={
             <RefreshControl
               refreshing={isLoading}
@@ -56,39 +58,16 @@ export const MonitorScreen = () => {
             />
           }
         >
-          <View style={styles.emptyStateContent}>
-            {/* Lock Icon */}
-            <View style={[styles.iconCircle, { borderColor: theme.colors.border }]}>
-              <Icon name="lock" size={48} color={theme.colors.textSecondary} />
-            </View>
-
-            {/* Title */}
-            <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>
-              No Dossiers
-            </Text>
-
-            {/* Subtitle */}
-            <Text style={[styles.emptySubtitle, { color: theme.colors.textSecondary }]}>
-              Create your first dossier to get started
-            </Text>
-
-            {/* Create Button */}
-            <TouchableOpacity
-              style={styles.createButton}
-              onPress={() => navigation.navigate('Create' as never)}
-            >
-              <Text style={styles.createButtonText}>CREATE DOSSIER</Text>
-            </TouchableOpacity>
-          </View>
+          <EmptyState />
         </ScrollView>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <ScrollView
-        contentContainerStyle={[styles.scrollContent, { paddingTop: 16 }]}
+        contentContainerStyle={{ padding: 16, paddingTop: insets.top + 16 }}
         refreshControl={
           <RefreshControl
             refreshing={isLoading}
@@ -211,7 +190,7 @@ export const MonitorScreen = () => {
           </View>
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -221,7 +200,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F9FAFB',
   },
   scrollContent: {
-    padding: 16,
+    flexGrow: 1,
   },
   section: {
     marginBottom: 24,
@@ -397,59 +376,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#6B7280',
     textAlign: 'center',
-  },
-  emptyStateContainer: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-  },
-  emptyStateContent: {
-    alignItems: 'center',
-    maxWidth: 400,
-    width: '100%',
-  },
-  iconCircle: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    borderWidth: 2,
-    borderColor: '#E5E7EB',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 32,
-  },
-  emptyTitle: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: '#111827',
-    marginBottom: 12,
-    textAlign: 'center',
-  },
-  emptySubtitle: {
-    fontSize: 16,
-    color: '#6B7280',
-    textAlign: 'center',
-    marginBottom: 40,
-    lineHeight: 24,
-  },
-  createButton: {
-    backgroundColor: '#E53935',
-    paddingVertical: 16,
-    paddingHorizontal: 48,
-    borderRadius: 12,
-    shadowColor: '#E53935',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
-    minWidth: 280,
-  },
-  createButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700',
-    textAlign: 'center',
-    letterSpacing: 0.5,
   },
 });
