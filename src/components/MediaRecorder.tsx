@@ -7,10 +7,15 @@ import {
   Alert,
   Platform,
   PermissionsAndroid,
+  NativeModules,
 } from 'react-native';
+import { Camera, useCameraDevice, useCameraPermission, useMicrophonePermission } from 'react-native-vision-camera';
+import AudioRecorderPlayer from 'react-native-audio-recorder-player';
 import RNFS from 'react-native-fs';
 import Icon from 'react-native-vector-icons/Feather';
 import { useTheme } from '../contexts/ThemeContext';
+
+const { AudioSessionManager } = NativeModules;
 
 type RecordingMode = 'voice' | 'video';
 type RecordingState = 'idle' | 'recording' | 'paused' | 'stopped';
@@ -23,46 +28,71 @@ interface MediaRecorderProps {
 
 export const MediaRecorder: React.FC<MediaRecorderProps> = ({ mode, onFileReady, onClose }) => {
   const { theme } = useTheme();
+  const camera = useRef<Camera>(null);
+  const device = useCameraDevice('back');
+  const { hasPermission: hasCameraPermission, requestPermission: requestCameraPermission } = useCameraPermission();
+  const { hasPermission: hasMicrophonePermission, requestPermission: requestMicrophonePermission } = useMicrophonePermission();
+  const audioRecorderPlayer = useRef<AudioRecorderPlayer | null>(null);
+
   const [recordingState, setRecordingState] = useState<RecordingState>('idle');
   const [duration, setDuration] = useState(0);
-  const [hasPermission, setHasPermission] = useState(false);
   const [recordedUri, setRecordedUri] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [playbackPosition, setPlaybackPosition] = useState(0);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
+    // Initialize audio recorder player for voice mode
+    if (mode === 'voice' && !audioRecorderPlayer.current) {
+      audioRecorderPlayer.current = new AudioRecorderPlayer();
+
+      // Configure audio session for speaker output on iOS
+      if (Platform.OS === 'ios' && AudioSessionManager) {
+        AudioSessionManager.setAudioOutputToSpeaker()
+          .then(() => console.log('✅ Audio session configured for speaker'))
+          .catch((error: any) => console.error('Failed to configure audio session:', error));
+      }
+    }
+
     requestPermissions();
+
     return () => {
       if (timerRef.current) {
         clearInterval(timerRef.current);
       }
+      // Clean up audio resources
+      if (mode === 'voice' && audioRecorderPlayer.current) {
+        audioRecorderPlayer.current.removePlayBackListener();
+        audioRecorderPlayer.current.stopPlayer();
+        audioRecorderPlayer.current.stopRecorder();
+      }
     };
-  }, []);
+  }, [mode]);
 
   const requestPermissions = async () => {
     try {
-      if (Platform.OS === 'android') {
-        const permissions = mode === 'video'
-          ? [PermissionsAndroid.PERMISSIONS.RECORD_AUDIO, PermissionsAndroid.PERMISSIONS.CAMERA]
-          : [PermissionsAndroid.PERMISSIONS.RECORD_AUDIO];
-
-        const granted = await PermissionsAndroid.requestMultiple(permissions);
-
-        const allGranted = Object.values(granted).every(
-          permission => permission === PermissionsAndroid.RESULTS.GRANTED
-        );
-
-        setHasPermission(allGranted);
-
-        if (!allGranted) {
+      // Request microphone permission (needed for both voice and video)
+      if (!hasMicrophonePermission) {
+        const micGranted = await requestMicrophonePermission();
+        if (!micGranted) {
           Alert.alert(
             'Permission Required',
-            `Canary needs ${mode === 'video' ? 'camera and microphone' : 'microphone'} access to record.`
+            'Canary needs microphone access to record audio.'
           );
+          return;
         }
-      } else {
-        // iOS permissions are handled via Info.plist prompts
-        setHasPermission(true);
+      }
+
+      // Request camera permission for video mode
+      if (mode === 'video' && !hasCameraPermission) {
+        const camGranted = await requestCameraPermission();
+        if (!camGranted) {
+          Alert.alert(
+            'Permission Required',
+            'Canary needs camera access to record video.'
+          );
+          return;
+        }
       }
     } catch (err) {
       console.error('Permission request error:', err);
@@ -90,71 +120,130 @@ export const MediaRecorder: React.FC<MediaRecorderProps> = ({ mode, onFileReady,
   };
 
   const handleStartRecording = async () => {
-    if (!hasPermission) {
+    // Check permissions first
+    if (!hasMicrophonePermission || (mode === 'video' && !hasCameraPermission)) {
       await requestPermissions();
       return;
     }
 
     try {
-      // TODO: Implement actual recording using native modules
-      // For now, this is a placeholder that demonstrates the UI flow
+      if (mode === 'video' && camera.current) {
+        console.log('📹 Starting video recording');
+        await camera.current.startRecording({
+          // Optimize video settings for performance
+          videoBitRate: 'low', // Use low bitrate for smaller file size and better performance
+          onRecordingFinished: (video) => {
+            console.log('✅ Video recording finished:', video.path);
+            setRecordedUri(`file://${video.path}`);
+            setRecordingState('stopped');
+            stopTimer();
+          },
+          onRecordingError: (error) => {
+            console.error('❌ Video recording error:', error);
+            Alert.alert('Error', `Failed to record video: ${error.message}`);
+            setRecordingState('idle');
+            stopTimer();
+          },
+        });
+        setRecordingState('recording');
+        startTimer();
+      } else if (mode === 'voice') {
+        console.log('🎤 Starting audio recording');
 
-      setRecordingState('recording');
-      startTimer();
+        // Check microphone permission first for iOS
+        if (Platform.OS === 'ios') {
+          if (!hasMicrophonePermission) {
+            const granted = await requestMicrophonePermission();
+            if (!granted) {
+              Alert.alert('Permission Required', 'Canary needs microphone access to record audio.');
+              return;
+            }
+          }
+        }
 
-      console.log(`📹 Started ${mode} recording`);
+        // Ensure audio recorder is initialized
+        if (!audioRecorderPlayer.current) {
+          console.log('Creating new AudioRecorderPlayer instance');
+          audioRecorderPlayer.current = new AudioRecorderPlayer();
 
-      // Placeholder: In production, initialize actual recording here
-      // using react-native-vision-camera for video or react-native-audio-recorder for audio
-    } catch (error) {
+          // Set audio encoding options for iOS
+          await audioRecorderPlayer.current.setSubscriptionDuration(0.1);
+        }
+
+        // Start recording with AudioRecorderPlayer
+        // For iOS, pass undefined to use default path or specify full path
+        const uri = await audioRecorderPlayer.current.startRecorder(undefined);
+        console.log('✅ Audio recording started:', uri);
+
+        setRecordedUri(uri);
+        setRecordingState('recording');
+        startTimer();
+
+        // Set up recording progress listener
+        audioRecorderPlayer.current.addRecordBackListener((e) => {
+          // Update UI if needed based on recording progress
+          return;
+        });
+      }
+    } catch (error: any) {
       console.error('Failed to start recording:', error);
-      Alert.alert('Error', 'Failed to start recording');
+      Alert.alert('Error', `Failed to start recording: ${error.message}`);
     }
   };
 
-  const handlePauseRecording = () => {
-    // TODO: Implement actual pause functionality
-    setRecordingState('paused');
-    stopTimer();
-    console.log('⏸️ Paused recording');
+  const handlePauseRecording = async () => {
+    try {
+      if (mode === 'video' && camera.current) {
+        await camera.current.pauseRecording();
+        setRecordingState('paused');
+        stopTimer();
+        console.log('⏸️ Paused video recording');
+      } else if (mode === 'voice') {
+        await audioRecorderPlayer.current.pauseRecorder();
+        setRecordingState('paused');
+        stopTimer();
+        console.log('⏸️ Paused audio recording');
+      }
+    } catch (error: any) {
+      console.error('Failed to pause recording:', error);
+    }
   };
 
-  const handleResumeRecording = () => {
-    // TODO: Implement actual resume functionality
-    setRecordingState('recording');
-    startTimer();
-    console.log('▶️ Resumed recording');
+  const handleResumeRecording = async () => {
+    try {
+      if (mode === 'video' && camera.current) {
+        await camera.current.resumeRecording();
+        setRecordingState('recording');
+        startTimer();
+        console.log('▶️ Resumed video recording');
+      } else if (mode === 'voice') {
+        await audioRecorderPlayer.current.resumeRecorder();
+        setRecordingState('recording');
+        startTimer();
+        console.log('▶️ Resumed audio recording');
+      }
+    } catch (error: any) {
+      console.error('Failed to resume recording:', error);
+    }
   };
 
   const handleStopRecording = async () => {
     try {
-      // TODO: Implement actual stop and save functionality
-      stopTimer();
-      setRecordingState('stopped');
-
-      // Placeholder: Generate a mock file URI with platform-specific path
-      const timestamp = Date.now();
-      const extension = mode === 'video' ? 'mp4' : 'm4a';
-      const fileName = `${mode}_recording_${timestamp}.${extension}`;
-
-      // Use platform-specific document directory
-      const mockUri = `${RNFS.DocumentDirectoryPath}/${fileName}`;
-
-      // Create a placeholder file for testing purposes
-      // TODO: Replace with actual recorded file data
-      const placeholderData = mode === 'video'
-        ? 'Placeholder video data - actual recording not yet implemented'
-        : 'Placeholder audio data - actual recording not yet implemented';
-
-      await RNFS.writeFile(mockUri, placeholderData, 'utf8');
-      console.log(`📝 Created placeholder file at: ${mockUri}`);
-
-      setRecordedUri(mockUri);
-
-      console.log(`⏹️ Stopped ${mode} recording:`, mockUri);
-    } catch (error) {
+      if (mode === 'video' && camera.current && recordingState !== 'idle') {
+        console.log('⏹️ Stopping video recording');
+        await camera.current.stopRecording();
+        // The onRecordingFinished callback will handle the rest
+      } else if (mode === 'voice' && recordingState !== 'idle') {
+        console.log('⏹️ Stopping audio recording');
+        const result = await audioRecorderPlayer.current.stopRecorder();
+        audioRecorderPlayer.current.removeRecordBackListener();
+        console.log('✅ Audio recording finished:', result);
+        setRecordingState('stopped');
+        stopTimer();
+      }
+    } catch (error: any) {
       console.error('Failed to stop recording:', error);
-      Alert.alert('Error', 'Failed to stop recording');
+      Alert.alert('Error', `Failed to stop recording: ${error.message}`);
     }
   };
 
@@ -168,13 +257,14 @@ export const MediaRecorder: React.FC<MediaRecorderProps> = ({ mode, onFileReady,
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
-            // Delete the file from file system
             if (recordedUri) {
               try {
-                const exists = await RNFS.exists(recordedUri);
+                // Remove file:// prefix if present
+                const filePath = recordedUri.replace('file://', '');
+                const exists = await RNFS.exists(filePath);
                 if (exists) {
-                  await RNFS.unlink(recordedUri);
-                  console.log(`🗑️ Deleted file: ${recordedUri}`);
+                  await RNFS.unlink(filePath);
+                  console.log(`🗑️ Deleted file: ${filePath}`);
                 }
               } catch (error) {
                 console.error('Failed to delete file:', error);
@@ -190,47 +280,98 @@ export const MediaRecorder: React.FC<MediaRecorderProps> = ({ mode, onFileReady,
     );
   };
 
-  const handlePlayPause = () => {
-    // TODO: Implement actual audio/video playback
-    // For now, this is a placeholder that demonstrates the UI flow
-    setIsPlaying(!isPlaying);
-    console.log(isPlaying ? '⏸️ Paused playback' : '▶️ Started playback');
+  const handlePlayPause = async () => {
+    try {
+      if (mode === 'voice' && recordedUri) {
+        if (isPlaying) {
+          // Pause playback
+          await audioRecorderPlayer.current.pausePlayer();
+          audioRecorderPlayer.current.removePlayBackListener();
+          setIsPlaying(false);
+          console.log('⏸️ Paused audio playback at', playbackPosition);
+        } else {
+          // Remove any existing listener first
+          audioRecorderPlayer.current.removePlayBackListener();
 
-    // Placeholder: In production, use react-native-video or react-native-sound
-    // to play the recorded file at recordedUri
+          console.log('📱 Starting playback for:', recordedUri);
+
+          // Start or resume playback
+          const msg = await audioRecorderPlayer.current.startPlayer(recordedUri);
+          console.log('✅ Player started, returned:', msg);
+
+          setIsPlaying(true);
+
+          // Listen for playback progress
+          audioRecorderPlayer.current.addPlayBackListener((e) => {
+            console.log('Playback progress:', e.currentPosition, '/', e.duration);
+            // Update playback position (convert milliseconds to seconds)
+            const positionInSeconds = Math.floor(e.currentPosition / 1000);
+            setPlaybackPosition(positionInSeconds);
+
+            // Check for completion
+            if (e.currentPosition >= e.duration && e.duration > 0) {
+              console.log('✅ Playback completed');
+              setIsPlaying(false);
+              setPlaybackPosition(0);
+              audioRecorderPlayer.current.stopPlayer();
+              audioRecorderPlayer.current.removePlayBackListener();
+            }
+            return;
+          });
+        }
+      } else if (mode === 'video') {
+        // Video playback not supported without expo-av or react-native-video
+        Alert.alert('Preview Not Available', 'Video preview is not available. You can still use the recorded video.');
+      }
+    } catch (error: any) {
+      console.error('Failed to play/pause:', error);
+      Alert.alert('Error', `Failed to play audio: ${error.message}`);
+    }
   };
 
-  const handleUseRecording = () => {
+  const handleUseRecording = async () => {
     if (!recordedUri) {
       Alert.alert('Error', 'No recording available');
       return;
     }
 
-    const timestamp = Date.now();
-    const extension = mode === 'video' ? 'mp4' : 'm4a';
-    const mimeType = mode === 'video' ? 'video/mp4' : 'audio/mp4';
-    const fileName = `${mode}_recording_${timestamp}.${extension}`;
+    try {
+      // Remove file:// prefix if present for RNFS operations
+      const filePath = recordedUri.replace('file://', '');
 
-    // TODO: Get actual file size from the recorded file
-    const mockSize = duration * (mode === 'video' ? 1000000 : 100000); // Rough estimate
+      // Get actual file size
+      const fileInfo = await RNFS.stat(filePath);
+      const fileSize = fileInfo.size;
 
-    onFileReady({
-      uri: recordedUri,
-      name: fileName,
-      type: mimeType,
-      size: mockSize,
-    });
+      const timestamp = Date.now();
+      const extension = mode === 'video' ? 'mp4' : 'm4a';
+      const mimeType = mode === 'video' ? 'video/mp4' : 'audio/mp4';
+      const fileName = `${mode}_recording_${timestamp}.${extension}`;
+
+      onFileReady({
+        uri: recordedUri,
+        name: fileName,
+        type: mimeType,
+        size: fileSize,
+      });
+    } catch (error: any) {
+      console.error('Failed to get file info:', error);
+      Alert.alert('Error', `Failed to process recording: ${error.message}`);
+    }
   };
 
   const renderControls = () => {
     if (recordingState === 'stopped' && recordedUri) {
       return (
         <View style={styles.stoppedControls}>
-          {mode === 'video' && (
-            <View style={[styles.videoPreview, { backgroundColor: theme.colors.border }]}>
-              <Icon name="video" size={48} color={theme.colors.textSecondary} />
-              <Text style={[styles.previewLabel, { color: theme.colors.textSecondary }]}>
-                Video Preview
+          {mode === 'video' && recordedUri && (
+            <View style={[styles.videoPreview, { backgroundColor: theme.colors.surface }]}>
+              <Icon name="video" size={48} color={theme.colors.primary} />
+              <Text style={[styles.videoPlaceholder, { color: theme.colors.text }]}>
+                Video Recorded
+              </Text>
+              <Text style={[styles.videoHint, { color: theme.colors.textSecondary }]}>
+                Preview not available - use the video file
               </Text>
             </View>
           )}
@@ -243,7 +384,7 @@ export const MediaRecorder: React.FC<MediaRecorderProps> = ({ mode, onFileReady,
                   Voice Recording
                 </Text>
                 <Text style={[styles.audioDuration, { color: theme.colors.textSecondary }]}>
-                  {formatDuration(duration)}
+                  {isPlaying ? `${formatDuration(playbackPosition)} / ${formatDuration(duration)}` : formatDuration(duration)}
                 </Text>
               </View>
             </View>
@@ -270,7 +411,7 @@ export const MediaRecorder: React.FC<MediaRecorderProps> = ({ mode, onFileReady,
               onPress={handleUseRecording}
             >
               <Icon name="check" size={20} color="#FFFFFF" />
-              <Text style={styles.useButtonText}>Accept</Text>
+              <Text style={styles.useButtonText}>Use Recording</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -279,12 +420,44 @@ export const MediaRecorder: React.FC<MediaRecorderProps> = ({ mode, onFileReady,
 
     return (
       <View style={styles.recordingControls}>
-        {mode === 'video' && recordingState !== 'idle' && (
-          <View style={[styles.videoPreview, { backgroundColor: theme.colors.border }]}>
-            <Icon name="video" size={48} color={theme.colors.textSecondary} />
-            <Text style={[styles.previewLabel, { color: theme.colors.textSecondary }]}>
-              {recordingState === 'recording' ? 'Recording...' : 'Paused'}
-            </Text>
+        {mode === 'video' && device && hasCameraPermission && (
+          <View style={styles.cameraContainer}>
+            <Camera
+              ref={camera}
+              style={styles.camera}
+              device={device}
+              isActive={recordingState !== 'stopped'}
+              video={true}
+              audio={true}
+              // Performance optimizations
+              preset="medium" // Use medium quality instead of high
+              fps={24} // Lower frame rate for better performance (24fps is standard)
+              videoStabilizationMode="off" // Disable stabilization to improve performance
+              enableBufferCompression={true} // Enable buffer compression
+            />
+            {recordingState !== 'idle' && (
+              <View style={styles.recordingIndicator}>
+                <View style={[styles.recordingDot, recordingState === 'recording' && styles.recordingDotActive]} />
+                <Text style={styles.recordingText}>
+                  {recordingState === 'recording' ? 'REC' : 'PAUSED'}
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
+
+        {mode === 'voice' && recordingState !== 'idle' && (
+          <View style={[styles.audioVisualizer, { backgroundColor: theme.colors.surface }]}>
+            <Icon name="mic" size={48} color={recordingState === 'recording' ? theme.colors.primary : theme.colors.textSecondary} />
+            {recordingState === 'recording' && (
+              <View style={styles.recordingIndicator}>
+                <View style={[styles.recordingDot, styles.recordingDotActive]} />
+                <Text style={styles.recordingText}>RECORDING</Text>
+              </View>
+            )}
+            {recordingState === 'paused' && (
+              <Text style={[styles.pausedText, { color: theme.colors.textSecondary }]}>PAUSED</Text>
+            )}
           </View>
         )}
 
@@ -358,6 +531,61 @@ export const MediaRecorder: React.FC<MediaRecorderProps> = ({ mode, onFileReady,
     );
   };
 
+  // Show permission request if needed
+  if (mode === 'video' && (!hasCameraPermission || !hasMicrophonePermission)) {
+    return (
+      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        <View style={[styles.header, { borderBottomColor: theme.colors.border }]}>
+          <Text style={[styles.headerTitle, { color: theme.colors.text }]}>
+            Video Recording
+          </Text>
+          <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+            <Icon name="x" size={24} color={theme.colors.text} />
+          </TouchableOpacity>
+        </View>
+        <View style={styles.permissionContainer}>
+          <Icon name="camera" size={64} color={theme.colors.textSecondary} />
+          <Text style={[styles.permissionTitle, { color: theme.colors.text }]}>
+            Camera & Microphone Access Required
+          </Text>
+          <Text style={[styles.permissionMessage, { color: theme.colors.textSecondary }]}>
+            Canary needs access to your camera and microphone to record videos for your dossier.
+          </Text>
+          <TouchableOpacity
+            style={[styles.permissionButton, { backgroundColor: theme.colors.primary }]}
+            onPress={requestPermissions}
+          >
+            <Text style={styles.permissionButtonText}>Grant Permission</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
+  if (mode === 'video' && !device) {
+    return (
+      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        <View style={[styles.header, { borderBottomColor: theme.colors.border }]}>
+          <Text style={[styles.headerTitle, { color: theme.colors.text }]}>
+            Video Recording
+          </Text>
+          <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+            <Icon name="x" size={24} color={theme.colors.text} />
+          </TouchableOpacity>
+        </View>
+        <View style={styles.permissionContainer}>
+          <Icon name="camera-off" size={64} color={theme.colors.textSecondary} />
+          <Text style={[styles.permissionTitle, { color: theme.colors.text }]}>
+            No Camera Available
+          </Text>
+          <Text style={[styles.permissionMessage, { color: theme.colors.textSecondary }]}>
+            No camera device was found on this device.
+          </Text>
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <View style={[styles.header, { borderBottomColor: theme.colors.border }]}>
@@ -404,13 +632,61 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  cameraContainer: {
+    width: '100%',
+    aspectRatio: 16 / 9,
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginBottom: 24,
+    position: 'relative',
+  },
+  camera: {
+    width: '100%',
+    height: '100%',
+  },
+  recordingIndicator: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    gap: 8,
+  },
+  recordingDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#6B7280',
+  },
+  recordingDotActive: {
+    backgroundColor: '#EF4444',
+  },
+  recordingText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
+  },
   videoPreview: {
     width: '100%',
     aspectRatio: 16 / 9,
     borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
+    overflow: 'hidden',
     marginBottom: 24,
+    backgroundColor: '#000',
+  },
+  videoPlaceholder: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginTop: 16,
+  },
+  videoHint: {
+    fontSize: 14,
+    marginTop: 8,
+    textAlign: 'center',
   },
   previewLabel: {
     marginTop: 12,
@@ -539,5 +815,48 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 4,
     elevation: 4,
+  },
+  permissionContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  permissionTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    marginTop: 24,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  permissionMessage: {
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 32,
+    lineHeight: 24,
+  },
+  permissionButton: {
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    borderRadius: 8,
+  },
+  permissionButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  audioVisualizer: {
+    width: '100%',
+    aspectRatio: 16 / 9,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 24,
+    gap: 16,
+  },
+  pausedText: {
+    fontSize: 14,
+    fontWeight: '700',
+    letterSpacing: 1.5,
   },
 });

@@ -1867,6 +1867,62 @@ PODS:
     - ReactCommon/turbomodule/core
     - SocketRocket
     - Yoga
+  - react-native-image-picker (8.2.1):
+    - boost
+    - DoubleConversion
+    - fast_float
+    - fmt
+    - glog
+    - hermes-engine
+    - RCT-Folly
+    - RCT-Folly/Fabric
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - SocketRocket
+    - Yoga
+  - react-native-pdf (7.0.3):
+    - boost
+    - DoubleConversion
+    - fast_float
+    - fmt
+    - glog
+    - hermes-engine
+    - RCT-Folly
+    - RCT-Folly/Fabric
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - SocketRocket
+    - Yoga
   - react-native-safe-area-context (5.6.2):
     - boost
     - DoubleConversion
@@ -2493,6 +2549,10 @@ PODS:
     - React-perflogger (= 0.82.1)
     - React-utils (= 0.82.1)
     - SocketRocket
+  - rn-fetch-blob (0.12.0):
+    - React-Core
+  - RNAudioRecorderPlayer (3.6.12):
+    - React-Core
   - RNCAsyncStorage (1.24.0):
     - boost
     - DoubleConversion
@@ -2784,6 +2844,8 @@ DEPENDENCIES:
   - "react-native-compat (from `../node_modules/@walletconnect/react-native-compat`)"
   - react-native-document-picker (from `../node_modules/react-native-document-picker`)
   - react-native-get-random-values (from `../node_modules/react-native-get-random-values`)
+  - react-native-image-picker (from `../node_modules/react-native-image-picker`)
+  - react-native-pdf (from `../node_modules/react-native-pdf`)
   - react-native-safe-area-context (from `../node_modules/react-native-safe-area-context`)
   - React-NativeModulesApple (from `../node_modules/react-native/ReactCommon/react/nativemodule/core/platform/ios`)
   - React-oscompat (from `../node_modules/react-native/ReactCommon/oscompat`)
@@ -2817,6 +2879,8 @@ DEPENDENCIES:
   - ReactAppDependencyProvider (from `build/generated/ios`)
   - ReactCodegen (from `build/generated/ios`)
   - ReactCommon/turbomodule/core (from `../node_modules/react-native/ReactCommon`)
+  - rn-fetch-blob (from `../node_modules/rn-fetch-blob`)
+  - RNAudioRecorderPlayer (from `../node_modules/react-native-audio-recorder-player`)
   - "RNCAsyncStorage (from `../node_modules/@react-native-async-storage/async-storage`)"
   - RNFS (from `../node_modules/react-native-fs`)
   - RNPermissions (from `../node_modules/react-native-permissions`)
@@ -2922,6 +2986,10 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native-document-picker"
   react-native-get-random-values:
     :path: "../node_modules/react-native-get-random-values"
+  react-native-image-picker:
+    :path: "../node_modules/react-native-image-picker"
+  react-native-pdf:
+    :path: "../node_modules/react-native-pdf"
   react-native-safe-area-context:
     :path: "../node_modules/react-native-safe-area-context"
   React-NativeModulesApple:
@@ -2988,6 +3056,10 @@ EXTERNAL SOURCES:
     :path: build/generated/ios
   ReactCommon:
     :path: "../node_modules/react-native/ReactCommon"
+  rn-fetch-blob:
+    :path: "../node_modules/rn-fetch-blob"
+  RNAudioRecorderPlayer:
+    :path: "../node_modules/react-native-audio-recorder-player"
   RNCAsyncStorage:
     :path: "../node_modules/@react-native-async-storage/async-storage"
   RNFS:
@@ -3054,6 +3126,8 @@ SPEC CHECKSUMS:
   react-native-compat: baac2e018250ad367b9461e90362c3dcaec14eac
   react-native-document-picker: dcf5e57f3bcae61bf8384a1c6f90896f81e17941
   react-native-get-random-values: e2acf4070fe4b7325705a05af047449637a27a21
+  react-native-image-picker: 0314366753615115fa55c3cc937ac44cb7e75702
+  react-native-pdf: edc236298f13f1609e42d41e45b8b6ea88ed10f9
   react-native-safe-area-context: c00143b4823773bba23f2f19f85663ae89ceb460
   React-NativeModulesApple: 46690a0fe94ec28fc6fc686ec797b911d251ded0
   React-oscompat: 95875e81f5d4b3c7b2c888d5bd2c9d83450d8bdb
@@ -3087,6 +3161,8 @@ SPEC CHECKSUMS:
   ReactAppDependencyProvider: a45ef34bb22dc1c9b2ac1f74167d9a28af961176
   ReactCodegen: 878add6c7d8ff8cea87697c44d29c03b79b6f2d9
   ReactCommon: 804dc80944fa90b86800b43c871742ec005ca424
+  rn-fetch-blob: 25612b6d6f6e980c6f17ed98ba2f58f5696a51ca
+  RNAudioRecorderPlayer: 11df0c7b614e9767ef24d896465c3a758c592de7
   RNCAsyncStorage: 01e4301688a611936e3644746ffe3325d3181952
   RNFS: 89de7d7f4c0f6bafa05343c578f61118c8282ed8
   RNPermissions: e5dd84f29e7a3871451f88efa83dfa6227806b51
@@ -3099,6 +3175,6 @@ SPEC CHECKSUMS:
   VisionCamera: 30b358b807324c692064f78385e9a732ce1bebfe
   Yoga: 689c8e04277f3ad631e60fe2a08e41d411daf8eb
 
-PODFILE CHECKSUM: ddf13891f62870be6b0c3449faaeb28213eb5efc
+PODFILE CHECKSUM: 2606596af09c201fc75fc35995d53ac384fbeef9
 
 COCOAPODS: 1.16.2
