@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Clipboard,
   Platform,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -37,6 +38,7 @@ export const DossierDetailScreen = () => {
   const [isCheckingIn, setIsCheckingIn] = useState(false);
   const [isDecrypting, setIsDecrypting] = useState(false);
   const [isReleasing, setIsReleasing] = useState(false);
+  const [isDisabling, setIsDisabling] = useState(false);
   const [showEditSchedule, setShowEditSchedule] = useState(false);
   const [showReleaseConfirm, setShowReleaseConfirm] = useState(false);
   const [showDisableConfirm, setShowDisableConfirm] = useState(false);
@@ -194,6 +196,7 @@ export const DossierDetailScreen = () => {
   };
 
   const handleDisable = async () => {
+    setIsDisabling(true);
     try {
       const result = await permanentlyDisable(dossier.id);
       if (result.success) {
@@ -205,6 +208,8 @@ export const DossierDetailScreen = () => {
       }
     } catch (error) {
       showError('An unexpected error occurred');
+    } finally {
+      setIsDisabling(false);
     }
   };
 
@@ -328,7 +333,7 @@ export const DossierDetailScreen = () => {
         <View style={[styles.panel, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
           <View style={styles.panelHeader}>
             <Text style={[styles.dossierName, { color: theme.colors.text }]}>
-              {dossier.metadata?.name || `Dossier #${dossier.id}`}
+              {dossier.name || `Dossier #${dossier.id}`}
             </Text>
             <View style={[styles.statusBadge, { backgroundColor: statusInfo.bgColor }]}>
               <View style={[styles.statusDot, { backgroundColor: statusInfo.color }]} />
@@ -345,12 +350,12 @@ export const DossierDetailScreen = () => {
             <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Visibility</Text>
             <View style={styles.visibilityBadge}>
               <Icon
-                name={dossier.metadata?.recipients?.length ? 'lock' : 'globe'}
+                name={dossier.recipients?.length ? 'lock' : 'globe'}
                 size={14}
                 color={theme.colors.text}
               />
               <Text style={[styles.visibilityText, { color: theme.colors.text }]}>
-                {dossier.metadata?.recipients?.length ? 'Private' : 'Public'}
+                {dossier.recipients?.length ? 'Private' : 'Public'}
               </Text>
             </View>
           </View>
@@ -612,10 +617,13 @@ export const DossierDetailScreen = () => {
           <View style={[styles.modalContent, { backgroundColor: theme.colors.card }]}>
             {isReleasing ? (
               <>
-                <ActivityIndicator size="large" color="#10B981" style={styles.modalIcon} />
-                <Text style={[styles.modalTitle, { color: theme.colors.text }]}>Releasing Dossier...</Text>
-                <Text style={[styles.modalDescription, { color: theme.colors.textSecondary }]}>
-                  Please wait while the transaction is being processed on the blockchain.
+                <Image
+                  source={require('../assets/canary-loader.gif')}
+                  style={styles.loaderGif}
+                  resizeMode="contain"
+                />
+                <Text style={[styles.modalDescription, { color: theme.colors.text, marginTop: 8 }]}>
+                  Releasing dossier...
                 </Text>
               </>
             ) : (
@@ -657,37 +665,52 @@ export const DossierDetailScreen = () => {
         visible={showDisableConfirm}
         transparent
         animationType="fade"
-        onRequestClose={() => setShowDisableConfirm(false)}
+        onRequestClose={() => !isDisabling && setShowDisableConfirm(false)}
       >
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: theme.colors.card }]}>
-            <Icon name="alert-circle" size={48} color="#EF4444" style={styles.modalIcon} />
-            <Text style={[styles.modalTitle, { color: theme.colors.text }]}>Permanently Disable?</Text>
-            <Text style={[styles.modalDescription, { color: theme.colors.textSecondary }]}>
-              This action will permanently disable the dossier. The encrypted data will remain encrypted forever and cannot be decrypted by anyone.
-            </Text>
+            {isDisabling ? (
+              <>
+                <Image
+                  source={require('../assets/canary-loader.gif')}
+                  style={styles.loaderGif}
+                  resizeMode="contain"
+                />
+                <Text style={[styles.modalDescription, { color: theme.colors.text, marginTop: 8 }]}>
+                  Disabling dossier...
+                </Text>
+              </>
+            ) : (
+              <>
+                <Icon name="alert-circle" size={48} color="#EF4444" style={styles.modalIcon} />
+                <Text style={[styles.modalTitle, { color: theme.colors.text }]}>Permanently Disable?</Text>
+                <Text style={[styles.modalDescription, { color: theme.colors.textSecondary }]}>
+                  This action will permanently disable the dossier. The encrypted data will remain encrypted forever and cannot be decrypted by anyone.
+                </Text>
 
-            <View style={styles.warningList}>
-              <Text style={[styles.warningItem, { color: '#EF4444' }]}>• Data remains encrypted permanently</Text>
-              <Text style={[styles.warningItem, { color: '#EF4444' }]}>• No one can decrypt the data</Text>
-              <Text style={[styles.warningItem, { color: '#EF4444' }]}>• Cannot be reversed or released</Text>
-              <Text style={[styles.warningItem, { color: '#EF4444' }]}>• Action recorded on blockchain</Text>
-            </View>
+                <View style={styles.warningList}>
+                  <Text style={[styles.warningItem, { color: '#EF4444' }]}>• Data remains encrypted permanently</Text>
+                  <Text style={[styles.warningItem, { color: '#EF4444' }]}>• No one can decrypt the data</Text>
+                  <Text style={[styles.warningItem, { color: '#EF4444' }]}>• Cannot be reversed or released</Text>
+                  <Text style={[styles.warningItem, { color: '#EF4444' }]}>• Action recorded on blockchain</Text>
+                </View>
 
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[styles.modalButton, { backgroundColor: theme.colors.border }]}
-                onPress={() => setShowDisableConfirm(false)}
-              >
-                <Text style={[styles.modalButtonText, { color: theme.colors.text }]}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalButton, { backgroundColor: '#EF4444' }]}
-                onPress={handleDisable}
-              >
-                <Text style={[styles.modalButtonText, { color: '#FFFFFF' }]}>Permanently Disable</Text>
-              </TouchableOpacity>
-            </View>
+                <View style={styles.modalButtons}>
+                  <TouchableOpacity
+                    style={[styles.modalButton, { backgroundColor: theme.colors.border }]}
+                    onPress={() => setShowDisableConfirm(false)}
+                  >
+                    <Text style={[styles.modalButtonText, { color: theme.colors.text }]}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.modalButton, { backgroundColor: '#EF4444' }]}
+                    onPress={handleDisable}
+                  >
+                    <Text style={[styles.modalButtonText, { color: '#FFFFFF' }]}>Permanently Disable</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
           </View>
         </View>
       </Modal>
@@ -1012,5 +1035,9 @@ const styles = StyleSheet.create({
   alertDialogButtonText: {
     fontSize: 16,
     fontWeight: '600',
+  },
+  loaderGif: {
+    width: 200,
+    height: 200,
   },
 });
