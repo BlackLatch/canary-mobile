@@ -9,7 +9,9 @@ import {
   ActivityIndicator,
   Modal,
   Linking,
+  Image,
 } from 'react-native';
+import Slider from '@react-native-community/slider';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../contexts/ThemeContext';
 import { useWallet } from '../contexts/WalletContext';
@@ -19,7 +21,9 @@ import { useNavigation } from '@react-navigation/native';
 import { MediaRecorder } from '../components/MediaRecorder';
 import { ErrorDialog } from '../components/ErrorDialog';
 import { SuccessDialog } from '../components/SuccessDialog';
+import { FileViewer } from '../components/FileViewer';
 import DocumentPicker from 'react-native-document-picker';
+import { launchImageLibrary } from 'react-native-image-picker';
 
 type ReleaseMode = 'public' | 'contacts';
 type RecordingMode = 'voice' | 'video' | null;
@@ -58,7 +62,7 @@ export const CreateDossierScreen = () => {
   const [description, setDescription] = useState('');
 
   // Step 2: Visibility
-  const [releaseMode, setReleaseMode] = useState<ReleaseMode>('public');
+  const [releaseMode, setReleaseMode] = useState<ReleaseMode | null>(null);
   const [emergencyContacts, setEmergencyContacts] = useState<string[]>(['']);
   const [expandedRecommendations, setExpandedRecommendations] = useState<ReleaseMode | null>(null);
   const [step2SubStep, setStep2SubStep] = useState<'selection' | 'contacts'>('selection'); // selection or contacts management
@@ -72,6 +76,30 @@ export const CreateDossierScreen = () => {
   const [termsSignature, setTermsSignature] = useState<string | null>(null);
   const [recordingMode, setRecordingMode] = useState<RecordingMode>(null);
   const [uploadedFiles, setUploadedFiles] = useState<Array<{ uri: string; name: string; type: string; size: number }>>([]);
+  const [viewingFile, setViewingFile] = useState<{ uri: string; name: string; type: string } | null>(null);
+
+  // Creation progress modal state
+  const [showCreationModal, setShowCreationModal] = useState(false);
+  const [creationStatus, setCreationStatus] = useState<string>('Preparing files...');
+
+  // Format hours into friendly display
+  const formatInterval = (hours: number): string => {
+    if (hours < 24) {
+      return `${hours} ${hours === 1 ? 'hour' : 'hours'}`;
+    } else if (hours < 168) { // Less than a week
+      const days = Math.round(hours / 24);
+      return `${days} ${days === 1 ? 'day' : 'days'}`;
+    } else if (hours < 720) { // Less than a month (30 days)
+      const weeks = Math.round(hours / 168);
+      return `${weeks} ${weeks === 1 ? 'week' : 'weeks'}`;
+    } else if (hours < 8760) { // Less than a year
+      const months = Math.round(hours / 730);
+      return `${months} ${months === 1 ? 'month' : 'months'}`;
+    } else {
+      const years = (hours / 8760).toFixed(1);
+      return `${years} ${years === '1.0' ? 'year' : 'years'}`;
+    }
+  };
 
   // Generate random name
   const generateRandomName = () => {
@@ -98,6 +126,43 @@ export const CreateDossierScreen = () => {
   // Remove uploaded file
   const handleRemoveFile = (index: number) => {
     setUploadedFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // Handle photo selection from library
+  const handlePickPhotos = async () => {
+    try {
+      const result = await launchImageLibrary({
+        mediaType: 'photo',
+        selectionLimit: 0, // 0 = unlimited
+        quality: 1,
+        includeBase64: false,
+      });
+
+      if (result.didCancel) {
+        console.log('User cancelled photo picker');
+        return;
+      }
+
+      if (result.errorCode) {
+        console.error('Photo picker error:', result.errorMessage);
+        setErrorDialog({ visible: true, message: 'Failed to select photos' });
+        return;
+      }
+
+      if (result.assets) {
+        const newFiles = result.assets.map(asset => ({
+          uri: asset.uri || '',
+          name: asset.fileName || `photo_${Date.now()}.jpg`,
+          type: asset.type || 'image/jpeg',
+          size: asset.fileSize || 0,
+        }));
+
+        setUploadedFiles(prev => [...prev, ...newFiles]);
+      }
+    } catch (err) {
+      console.error('Error picking photos:', err);
+      setErrorDialog({ visible: true, message: 'Failed to select photos' });
+    }
   };
 
   // Handle file selection
@@ -144,6 +209,9 @@ export const CreateDossierScreen = () => {
       case 1:
         return name.trim().length > 0;
       case 2:
+        if (!releaseMode) {
+          return false; // Must select a release mode
+        }
         if (releaseMode === 'contacts') {
           const validContacts = emergencyContacts.filter(c => c.trim().length > 0);
           return validContacts.length > 0;
@@ -158,7 +226,17 @@ export const CreateDossierScreen = () => {
       case 4:
         return hasAcceptedTerms;
       case 5:
-        return true;
+        // Finalize: Ensure all previous steps are complete AND files are uploaded
+        const step1Valid = name.trim().length > 0;
+        const step2Valid = releaseMode !== null &&
+          (releaseMode === 'public' || emergencyContacts.filter(c => c.trim().length > 0).length > 0);
+        const step3Valid = checkInInterval === 'custom'
+          ? !isNaN(parseInt(customInterval)) && parseInt(customInterval) >= 1 && parseInt(customInterval) <= 8760
+          : checkInInterval.length > 0;
+        const step4Valid = hasAcceptedTerms;
+        const filesUploaded = uploadedFiles.length > 0;
+
+        return step1Valid && step2Valid && step3Valid && step4Valid && filesUploaded;
       default:
         return false;
     }
@@ -226,19 +304,31 @@ export const CreateDossierScreen = () => {
   };
 
   // Finalize and create dossier
-  const handleFinalize = async () => {
-    setIsSubmitting(true);
-    try {
-      // Validate that at least one file has been added
-      if (uploadedFiles.length === 0) {
-        setErrorDialog({
-          visible: true,
-          message: 'Please add at least one file to your dossier before creating it.',
-        });
-        setIsSubmitting(false);
-        return;
-      }
+  const handleFinalize = () => {
+    console.log('🔵 handleFinalize called');
 
+    // Validate that at least one file has been added
+    if (uploadedFiles.length === 0) {
+      console.log('❌ No files uploaded');
+      setErrorDialog({
+        visible: true,
+        message: 'Please add at least one file to your dossier before creating it.',
+      });
+      return;
+    }
+
+    // Show modal immediately - this will render before the async work starts
+    setShowCreationModal(true);
+    setCreationStatus('Preparing files...');
+
+    // Use setTimeout to ensure the modal renders before we start the heavy work
+    setTimeout(() => {
+      performCreation();
+    }, 100);
+  };
+
+  const performCreation = async () => {
+    try {
       // Convert interval to seconds
       const intervalMinutes = checkInInterval === 'custom'
         ? parseInt(customInterval) * 60
@@ -251,6 +341,8 @@ export const CreateDossierScreen = () => {
         ? emergencyContacts.filter(c => c.trim().length > 0) as `0x${string}`[]
         : [];
 
+      // Create the dossier
+      setCreationStatus('Encrypting and uploading files...');
       const result = await createDossier(
         name.trim(),
         description.trim(),
@@ -260,53 +352,62 @@ export const CreateDossierScreen = () => {
       );
 
       if (result.success) {
-        setSuccessDialog({
-          visible: true,
-          message: 'Dossier created successfully!',
-        });
+        setCreationStatus('Dossier created successfully!');
+        setTimeout(() => {
+          setShowCreationModal(false);
+          navigation.goBack();
+        }, 1500);
       } else {
-        setErrorDialog({ visible: true, message: result.error || 'Failed to create dossier' });
+        setShowCreationModal(false);
+        setErrorDialog({
+          visible: true,
+          message: result.error || 'Failed to create dossier',
+        });
       }
-    } catch (error) {
-      console.error('Create dossier error:', error);
-      setErrorDialog({ visible: true, message: 'An unexpected error occurred' });
-    } finally {
-      setIsSubmitting(false);
+    } catch (error: any) {
+      console.error('❌ Create dossier error:', error);
+      setShowCreationModal(false);
+      setErrorDialog({ visible: true, message: error.message || 'An unexpected error occurred' });
     }
   };
 
   // Render step indicators
   const renderStepIndicators = () => (
     <View style={styles.stepIndicators}>
-      {[1, 2, 3, 4, 5].map((step, index) => (
-        <React.Fragment key={step}>
-          <TouchableOpacity
-            style={[
-              styles.stepIndicator,
-              step === currentStep && styles.stepIndicatorActive,
-              step < currentStep && styles.stepIndicatorCompleted,
-            ]}
-            onPress={() => setCurrentStep(step)}
-          >
-            <Text
+      {[1, 2, 3, 4, 5].map((step, index) => {
+        // A step is completed if it's before the current step AND it's valid
+        const isCompleted = step < currentStep && isStepValid(step);
+
+        return (
+          <React.Fragment key={step}>
+            <TouchableOpacity
               style={[
-                styles.stepIndicatorText,
-                (step === currentStep || step < currentStep) && styles.stepIndicatorTextActive,
+                styles.stepIndicator,
+                step === currentStep && styles.stepIndicatorActive,
+                isCompleted && styles.stepIndicatorCompleted,
               ]}
+              onPress={() => setCurrentStep(step)}
             >
-              {step < currentStep ? '✓' : step}
-            </Text>
-          </TouchableOpacity>
-          {index < 4 && (
-            <View
-              style={[
-                styles.stepConnector,
-                step < currentStep && styles.stepConnectorCompleted,
-              ]}
-            />
-          )}
-        </React.Fragment>
-      ))}
+              <Text
+                style={[
+                  styles.stepIndicatorText,
+                  (step === currentStep || isCompleted) && styles.stepIndicatorTextActive,
+                ]}
+              >
+                {isCompleted ? '✓' : step}
+              </Text>
+            </TouchableOpacity>
+            {index < 4 && (
+              <View
+                style={[
+                  styles.stepConnector,
+                  isCompleted && styles.stepConnectorCompleted,
+                ]}
+              />
+            )}
+          </React.Fragment>
+        );
+      })}
     </View>
   );
 
@@ -680,119 +781,49 @@ export const CreateDossierScreen = () => {
             <Text style={[styles.label, { color: theme.colors.text }]}>
               Custom Interval (Hours)
             </Text>
-            <View style={styles.stepperContainer}>
-              {/* Decrement button */}
-              <TouchableOpacity
-                style={[styles.stepperButton, {
-                  backgroundColor: theme.colors.surface,
-                  borderColor: theme.colors.border,
-                }]}
-                onPress={() => {
-                  const current = parseInt(customInterval) || 24;
-                  const newValue = Math.max(1, current - 1);
-                  setCustomInterval(newValue.toString());
-                  setCheckInInterval('custom');
-                }}
-              >
-                <Icon name="minus" size={20} color={theme.colors.text} />
-              </TouchableOpacity>
 
-              {/* Value display */}
-              <View style={[styles.stepperValue, {
-                backgroundColor: theme.colors.surface,
-                borderColor: theme.colors.border,
-              }]}>
-                <Text style={[styles.stepperValueText, { color: theme.colors.text }]}>
-                  {customInterval || '24'}
-                </Text>
-                <Text style={[styles.stepperValueLabel, { color: theme.colors.textSecondary }]}>
-                  {parseInt(customInterval || '24') === 1 ? 'hour' : 'hours'}
-                </Text>
-              </View>
-
-              {/* Increment button */}
-              <TouchableOpacity
-                style={[styles.stepperButton, {
-                  backgroundColor: theme.colors.surface,
-                  borderColor: theme.colors.border,
-                }]}
-                onPress={() => {
-                  const current = parseInt(customInterval) || 24;
-                  const newValue = Math.min(8760, current + 1);
-                  setCustomInterval(newValue.toString());
-                  setCheckInInterval('custom');
-                }}
-              >
-                <Icon name="plus" size={20} color={theme.colors.text} />
-              </TouchableOpacity>
+            {/* Value display */}
+            <View style={[styles.sliderValueContainer, {
+              backgroundColor: theme.colors.surface,
+              borderColor: theme.colors.border,
+            }]}>
+              <Text style={[styles.sliderValueText, { color: theme.colors.text }]}>
+                {formatInterval(parseInt(customInterval) || 24)}
+              </Text>
             </View>
 
-            {/* Quick adjustment buttons */}
-            <View style={styles.quickAdjustContainer}>
-              <TouchableOpacity
-                style={[styles.quickAdjustButton, {
-                  backgroundColor: theme.colors.surface,
-                  borderColor: theme.colors.border,
-                }]}
-                onPress={() => {
-                  const current = parseInt(customInterval) || 24;
-                  const newValue = Math.max(1, current - 10);
-                  setCustomInterval(newValue.toString());
-                  setCheckInInterval('custom');
-                }}
-              >
-                <Text style={[styles.quickAdjustText, { color: theme.colors.textSecondary }]}>-10</Text>
-              </TouchableOpacity>
+            {/* Slider - using logarithmic scale for better control at lower values */}
+            <Slider
+              style={styles.slider}
+              minimumValue={0}
+              maximumValue={100}
+              step={1}
+              value={
+                // Convert hours to logarithmic position (0-100)
+                ((Math.log(parseInt(customInterval) || 24) - Math.log(1)) /
+                (Math.log(8760) - Math.log(1))) * 100
+              }
+              onValueChange={(position) => {
+                // Convert logarithmic position back to hours
+                const hours = Math.round(
+                  Math.exp(Math.log(1) + (position / 100) * (Math.log(8760) - Math.log(1)))
+                );
+                setCustomInterval(hours.toString());
+                setCheckInInterval('custom');
+              }}
+              minimumTrackTintColor={theme.colors.primary}
+              maximumTrackTintColor={theme.colors.border}
+              thumbTintColor={theme.colors.primary}
+            />
 
-              <TouchableOpacity
-                style={[styles.quickAdjustButton, {
-                  backgroundColor: theme.colors.surface,
-                  borderColor: theme.colors.border,
-                }]}
-                onPress={() => {
-                  const current = parseInt(customInterval) || 24;
-                  const newValue = Math.max(1, current - 100);
-                  setCustomInterval(newValue.toString());
-                  setCheckInInterval('custom');
-                }}
-              >
-                <Text style={[styles.quickAdjustText, { color: theme.colors.textSecondary }]}>-100</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.quickAdjustButton, {
-                  backgroundColor: theme.colors.surface,
-                  borderColor: theme.colors.border,
-                }]}
-                onPress={() => {
-                  const current = parseInt(customInterval) || 24;
-                  const newValue = Math.min(8760, current + 100);
-                  setCustomInterval(newValue.toString());
-                  setCheckInInterval('custom');
-                }}
-              >
-                <Text style={[styles.quickAdjustText, { color: theme.colors.textSecondary }]}>+100</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.quickAdjustButton, {
-                  backgroundColor: theme.colors.surface,
-                  borderColor: theme.colors.border,
-                }]}
-                onPress={() => {
-                  const current = parseInt(customInterval) || 24;
-                  const newValue = Math.min(8760, current + 10);
-                  setCustomInterval(newValue.toString());
-                  setCheckInInterval('custom');
-                }}
-              >
-                <Text style={[styles.quickAdjustText, { color: theme.colors.textSecondary }]}>+10</Text>
-              </TouchableOpacity>
+            <View style={styles.sliderLabels}>
+              <Text style={[styles.sliderLabelText, { color: theme.colors.textSecondary }]}>
+                1 hour
+              </Text>
+              <Text style={[styles.sliderLabelText, { color: theme.colors.textSecondary }]}>
+                1 year (8760 hours)
+              </Text>
             </View>
-
-            <Text style={[styles.hint, { color: theme.colors.textSecondary }]}>
-              Min: 1 hour | Max: 1 year (8760 hours)
-            </Text>
           </View>
         </View>
 
@@ -949,17 +980,29 @@ export const CreateDossierScreen = () => {
 
           <View style={[styles.card, { backgroundColor: theme.colors.card }]}>
             <Text style={[styles.label, { color: theme.colors.text }]}>
-              Upload Files
+              Add Files
             </Text>
-            <TouchableOpacity
-              style={[styles.recordButton, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
-              onPress={handlePickFiles}
-            >
-              <Icon name="file-plus" size={24} color={theme.colors.primary} />
-              <Text style={[styles.recordButtonText, { color: theme.colors.text }]}>
-                Choose Files
-              </Text>
-            </TouchableOpacity>
+            <View style={styles.recordingButtons}>
+              <TouchableOpacity
+                style={[styles.recordButton, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
+                onPress={handlePickPhotos}
+              >
+                <Icon name="image" size={24} color={theme.colors.primary} />
+                <Text style={[styles.recordButtonText, { color: theme.colors.text }]}>
+                  Select Photos
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.recordButton, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
+                onPress={handlePickFiles}
+              >
+                <Icon name="file-plus" size={24} color={theme.colors.primary} />
+                <Text style={[styles.recordButtonText, { color: theme.colors.text }]}>
+                  Choose Files
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
           {uploadedFiles.length > 0 && (
@@ -967,24 +1010,52 @@ export const CreateDossierScreen = () => {
               <Text style={[styles.label, { color: theme.colors.text }]}>
                 Uploaded Files ({uploadedFiles.length})
               </Text>
-              {uploadedFiles.map((file, index) => (
-                <View key={index} style={[styles.fileRow, { borderTopColor: theme.colors.border }]}>
-                  <Icon
-                    name={getFileIcon(file.type)}
-                    size={20}
-                    color={theme.colors.primary}
-                  />
-                  <View style={styles.fileInfo}>
-                    <Text style={[styles.fileName, { color: theme.colors.text }]}>{file.name}</Text>
-                    <Text style={[styles.fileSize, { color: theme.colors.textSecondary }]}>
-                      {(file.size / 1024 / 1024).toFixed(2)} MB
-                    </Text>
-                  </View>
-                  <TouchableOpacity onPress={() => handleRemoveFile(index)}>
-                    <Icon name="trash-2" size={20} color="#EF4444" />
+              {uploadedFiles.map((file, index) => {
+                const canPreview = file.type.startsWith('image/') || file.type.includes('pdf');
+
+                return (
+                  <TouchableOpacity
+                    key={index}
+                    style={[styles.fileRow, { borderTopColor: theme.colors.border }]}
+                    onPress={() => {
+                      if (canPreview) {
+                        setViewingFile({
+                          uri: file.uri,
+                          name: file.name,
+                          type: file.type,
+                        });
+                      }
+                    }}
+                    disabled={!canPreview}
+                  >
+                    <Icon
+                      name={getFileIcon(file.type)}
+                      size={20}
+                      color={theme.colors.primary}
+                    />
+                    <View style={styles.fileInfo}>
+                      <View style={styles.fileNameRow}>
+                        <Text
+                          style={[styles.fileName, { color: theme.colors.text }]}
+                          numberOfLines={1}
+                          ellipsizeMode="middle"
+                        >
+                          {file.name}
+                        </Text>
+                        {canPreview && (
+                          <Icon name="eye" size={14} color={theme.colors.textSecondary} />
+                        )}
+                      </View>
+                      <Text style={[styles.fileSize, { color: theme.colors.textSecondary }]}>
+                        {(file.size / 1024 / 1024).toFixed(2)} MB
+                      </Text>
+                    </View>
+                    <TouchableOpacity onPress={() => handleRemoveFile(index)}>
+                      <Icon name="trash-2" size={20} color="#EF4444" />
+                    </TouchableOpacity>
                   </TouchableOpacity>
-                </View>
-              ))}
+                );
+              })}
             </View>
           )}
         </>
@@ -1166,6 +1237,37 @@ export const CreateDossierScreen = () => {
           }
         }}
       />
+
+      {/* File Viewer */}
+      {viewingFile && (
+        <FileViewer
+          visible={true}
+          fileUri={viewingFile.uri}
+          fileName={viewingFile.name}
+          fileType={viewingFile.type}
+          onClose={() => setViewingFile(null)}
+        />
+      )}
+
+      {/* Creation Progress Modal */}
+      <Modal
+        visible={showCreationModal}
+        transparent={true}
+        animationType="fade"
+      >
+        <View style={styles.creationModalOverlay}>
+          <View style={[styles.creationModalContent, { backgroundColor: theme.colors.card }]}>
+            <Image
+              source={require('../assets/canary-loader.gif')}
+              style={styles.loaderGif}
+              resizeMode="contain"
+            />
+            <Text style={[styles.creationModalText, { color: theme.colors.text }]}>
+              {creationStatus}
+            </Text>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -1576,61 +1678,75 @@ const styles = StyleSheet.create({
   fileInfo: {
     flex: 1,
   },
+  fileNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 2,
+  },
   fileName: {
     fontSize: 14,
     fontWeight: '600',
-    marginBottom: 2,
+    flex: 1,
   },
   fileSize: {
     fontSize: 12,
   },
-  // Stepper styles
-  stepperContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  stepperButton: {
-    width: 48,
-    height: 48,
+  // Slider styles
+  sliderValueContainer: {
+    paddingVertical: 16,
+    paddingHorizontal: 20,
     borderRadius: 8,
     borderWidth: 1,
-    justifyContent: 'center',
     alignItems: 'center',
+    marginBottom: 16,
   },
-  stepperValue: {
-    flex: 1,
-    height: 48,
-    borderRadius: 8,
-    borderWidth: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  stepperValueText: {
-    fontSize: 20,
+  sliderValueText: {
+    fontSize: 32,
     fontWeight: '700',
     fontFamily: 'monospace',
   },
-  stepperValueLabel: {
-    fontSize: 11,
-    marginTop: -2,
-  },
-  quickAdjustContainer: {
-    flexDirection: 'row',
-    gap: 8,
+  sliderValueLabel: {
+    fontSize: 14,
     marginTop: 4,
   },
-  quickAdjustButton: {
+  slider: {
+    width: '100%',
+    height: 40,
+  },
+  sliderLabels: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 8,
+  },
+  sliderLabelText: {
+    fontSize: 12,
+  },
+  creationModalOverlay: {
     flex: 1,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 6,
-    borderWidth: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
     alignItems: 'center',
   },
-  quickAdjustText: {
-    fontSize: 13,
+  creationModalContent: {
+    padding: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    minWidth: 200,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  loaderGif: {
+    width: 200,
+    height: 200,
+  },
+  creationModalText: {
+    marginTop: 8,
+    fontSize: 16,
     fontWeight: '600',
-    fontFamily: 'monospace',
+    textAlign: 'center',
   },
 });

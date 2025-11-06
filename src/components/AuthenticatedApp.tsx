@@ -1,5 +1,5 @@
 import React from 'react';
-import { ActivityIndicator, View, StyleSheet } from 'react-native';
+import { ActivityIndicator, View, StyleSheet, Image, Text } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { useWallet } from '../contexts/WalletContext';
 import { LoginScreen } from '../screens/LoginScreen';
@@ -11,7 +11,14 @@ export const AuthenticatedApp = () => {
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#E53935" />
+        <View style={styles.logoContainer}>
+          <Image
+            source={require('../../assets/solo-canary.png')}
+            style={styles.logo}
+            resizeMode="contain"
+          />
+          <Text style={styles.logoText}>CANARY</Text>
+        </View>
       </View>
     );
   }
@@ -35,5 +42,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#F9FAFB',
+  },
+  logoContainer: {
+    alignItems: 'center',
+  },
+  logo: {
+    height: 80,
+    width: 80,
+    marginBottom: 16,
+  },
+  logoText: {
+    fontSize: 24,
+    fontWeight: '600',
+    letterSpacing: 2,
+    color: '#111827',
   },
 });

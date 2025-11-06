@@ -8,6 +8,7 @@ import {
   Dimensions,
   ActivityIndicator,
   Modal,
+  Pressable,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Feather';
@@ -78,7 +79,7 @@ export const FileViewer: React.FC<FileViewerProps> = ({
 
     if (isImage) {
       return (
-        <View style={styles.imageContainer}>
+        <Pressable style={styles.imageContainer} onPress={onClose}>
           {loading && (
             <View style={styles.loadingContainer}>
               <ActivityIndicator size="large" color={theme.colors.primary} />
@@ -98,7 +99,12 @@ export const FileViewer: React.FC<FileViewerProps> = ({
               setError('Failed to load image');
             }}
           />
-        </View>
+          <View style={styles.tapHint}>
+            <Text style={[styles.tapHintText, { color: 'rgba(255,255,255,0.7)' }]}>
+              Tap to close
+            </Text>
+          </View>
+        </Pressable>
       );
     }
 
@@ -322,5 +328,18 @@ const styles = StyleSheet.create({
   unsupportedHint: {
     fontSize: 12,
     textAlign: 'center',
+  },
+  tapHint: {
+    position: 'absolute',
+    bottom: 40,
+    alignSelf: 'center',
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 20,
+  },
+  tapHintText: {
+    fontSize: 14,
+    fontWeight: '500',
   },
 });
