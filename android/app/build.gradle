@@ -84,6 +84,18 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
         versionName "1.0"
+
+        // Required for Go mobile bindings
+        ndk {
+            abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86', 'x86_64'
+        }
+    }
+
+    // Enable AAR files from libs directory
+    repositories {
+        flatDir {
+            dirs 'libs'
+        }
     }
     signingConfigs {
         debug {
@@ -116,4 +128,7 @@ dependencies {
     } else {
         implementation jscFlavor
     }
+
+    // Go mobile bindings
+    implementation(name: 'mobile', ext: 'aar')
 }
