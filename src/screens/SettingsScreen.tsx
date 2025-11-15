@@ -9,9 +9,11 @@ import {
   Switch,
   Clipboard,
   Modal,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Icon from 'react-native-vector-icons/Feather';
 import { useWallet } from '../contexts/WalletContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { burnerWalletService } from '../lib/burnerWallet';
@@ -244,6 +246,24 @@ export const SettingsScreen = () => {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
+        {/* Screen Header */}
+        <View style={styles.screenHeader}>
+          <View style={styles.screenTitleRow}>
+            <View style={styles.screenTitleLeft}>
+              <Icon name="settings" size={32} color="#e53e3e" />
+              <Text style={[styles.screenTitle, { color: theme.colors.text }]}>SETTINGS</Text>
+            </View>
+            <Image
+              source={require('../assets/canary-icon.png')}
+              style={styles.canaryIcon}
+              resizeMode="contain"
+            />
+          </View>
+          <Text style={[styles.screenSubtitle, { color: theme.colors.textSecondary }]}>
+            Configure your preferences and manage your account
+          </Text>
+        </View>
+
         {/* Appearance Section */}
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Appearance</Text>
@@ -680,10 +700,11 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    padding: 16,
+    paddingBottom: 16,
   },
   section: {
     marginBottom: 32,
+    paddingHorizontal: 24,
   },
   sectionTitle: {
     fontSize: 18,
@@ -906,5 +927,36 @@ const styles = StyleSheet.create({
   modalButtonText: {
     fontSize: 16,
     fontWeight: '600',
+  },
+  // Screen Header Styles
+  screenHeader: {
+    paddingHorizontal: 24,
+    paddingBottom: 24,
+    marginBottom: 8,
+  },
+  screenTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  screenTitleLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  screenTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    letterSpacing: 1,
+  },
+  screenSubtitle: {
+    fontSize: 14,
+    lineHeight: 20,
+    marginLeft: 44,
+  },
+  canaryIcon: {
+    width: 32,
+    height: 32,
   },
 });

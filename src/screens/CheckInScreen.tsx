@@ -22,6 +22,7 @@ import { useDossier } from '../contexts/DossierContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { HourglassButton } from '../components/HourglassButton';
 import { EmptyState } from '../components/EmptyState';
+import Icon from 'react-native-vector-icons/Feather';
 
 export const CheckInScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
@@ -194,6 +195,24 @@ export const CheckInScreen: React.FC = () => {
         refreshControl={
           <RefreshControl refreshing={isLoading} onRefresh={loadDossiers} colors={[theme.colors.primary]} />
         }>
+        {/* Screen Header */}
+        <View style={styles.screenHeader}>
+          <View style={styles.screenTitleRow}>
+            <View style={styles.screenTitleLeft}>
+              <Icon name="heart" size={32} color="#e53e3e" />
+              <Text style={[styles.screenTitle, { color: theme.colors.text }]}>CHECK IN</Text>
+            </View>
+            <Image
+              source={require('../assets/canary-icon.png')}
+              style={styles.canaryIcon}
+              resizeMode="contain"
+            />
+          </View>
+          <Text style={[styles.screenSubtitle, { color: theme.colors.textSecondary }]}>
+            Check-in to keep your dossiers locked
+          </Text>
+        </View>
+
         {isLoading && dossiers.length === 0 ? (
           // Initial Loading State (only show when no dossiers loaded yet)
           <View style={styles.loadingContainer}>
@@ -511,5 +530,36 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     letterSpacing: 1.5,
+  },
+  // Screen Header Styles
+  screenHeader: {
+    paddingHorizontal: 24,
+    paddingBottom: 24,
+    marginBottom: 8,
+  },
+  screenTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  screenTitleLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  screenTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    letterSpacing: 1,
+  },
+  screenSubtitle: {
+    fontSize: 14,
+    lineHeight: 20,
+    marginLeft: 44,
+  },
+  canaryIcon: {
+    width: 32,
+    height: 32,
   },
 });

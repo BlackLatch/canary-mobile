@@ -12,6 +12,7 @@ import {
   TouchableOpacity,
   ScrollView,
   RefreshControl,
+  Image,
 } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { useNavigation } from '@react-navigation/native';
@@ -173,14 +174,14 @@ export const DossiersScreen = () => {
             style={[
               styles.viewButton,
               timeInfo.expired
-                ? { backgroundColor: '#D1FAE5', borderColor: theme.colors.success }
+                ? styles.viewButtonExpired
                 : { backgroundColor: theme.colors.background, borderColor: theme.colors.border }
             ]}
             onPress={() => navigation.navigate('DossierDetail' as never, { dossier } as never)}
           >
             <Text style={[
               styles.viewButtonText,
-              { color: timeInfo.expired ? theme.colors.success : theme.colors.text }
+              { color: timeInfo.expired ? '#FFFFFF' : theme.colors.text }
             ]}>
               {timeInfo.expired ? 'VIEW RELEASE' : 'VIEW DETAILS'}
             </Text>
@@ -222,6 +223,21 @@ export const DossiersScreen = () => {
           />
         }
       >
+        {/* Screen Header */}
+        <View style={styles.screenHeader}>
+          <View style={styles.screenTitleRow}>
+            <View style={styles.screenTitleLeft}>
+              <Icon name="folder" size={32} color="#e53e3e" />
+              <Text style={[styles.screenTitle, { color: theme.colors.text }]}>MY DOSSIERS</Text>
+            </View>
+            <Image
+              source={require('../assets/canary-icon.png')}
+              style={styles.canaryIcon}
+              resizeMode="contain"
+            />
+          </View>
+        </View>
+
         {dossiers.length === 0 ? (
           renderEmptyState()
         ) : (
@@ -399,9 +415,42 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     alignItems: 'center',
   },
+  viewButtonExpired: {
+    backgroundColor: '#10B981',
+    borderWidth: 0,
+    shadowColor: '#10B981',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
+  },
   viewButtonText: {
     fontSize: 14,
     fontWeight: '600',
     letterSpacing: 1.5,
+  },
+  // Screen Header Styles
+  screenHeader: {
+    paddingHorizontal: 24,
+    paddingBottom: 16,
+  },
+  screenTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  screenTitleLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  screenTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    letterSpacing: 1,
+  },
+  canaryIcon: {
+    width: 32,
+    height: 32,
   },
 });
