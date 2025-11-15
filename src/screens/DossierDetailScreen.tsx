@@ -219,6 +219,18 @@ export const DossierDetailScreen = () => {
       return;
     }
 
+    // Check guardian threshold if guardians are configured
+    const hasGuardians = dossier.guardians && dossier.guardians.length > 0;
+    if (hasGuardians) {
+      const confirmationCount = Number(dossier.guardianConfirmationCount || 0);
+      const threshold = Number(dossier.guardianThreshold || 0);
+
+      if (confirmationCount < threshold) {
+        showError(`Cannot decrypt: Guardian threshold not met (${confirmationCount}/${threshold} confirmations)`);
+        return;
+      }
+    }
+
     // Navigate to dedicated decryption progress screen
     navigation.navigate('DecryptionProgress' as never, {
       dossierId: dossier.id.toString(),
@@ -316,7 +328,14 @@ export const DossierDetailScreen = () => {
   const statusInfo = getStatusInfo();
   const canCheckIn = dossier.isActive && !dossier.isReleased && !dossier.isPermanentlyDisabled;
   const canModify = !dossier.isReleased && !dossier.isPermanentlyDisabled;
-  const canDecrypt = dossier.isReleased || (dossier.encryptedFileHashes?.length || 0) > 0;
+
+  // Check if decryption is allowed
+  const hasFiles = (dossier.encryptedFileHashes?.length || 0) > 0;
+  const hasGuardians = dossier.guardians && dossier.guardians.length > 0;
+  const guardianThresholdMet = hasGuardians
+    ? Number(dossier.guardianConfirmationCount || 0) >= Number(dossier.guardianThreshold || 0)
+    : true;
+  const canDecrypt = hasFiles && (dossier.isReleased || guardianThresholdMet);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
@@ -451,6 +470,43 @@ export const DossierDetailScreen = () => {
                 <TouchableOpacity
                   style={[styles.copyButton, { borderColor: theme.colors.border }]}
                   onPress={() => copyToClipboard(recipient, 'Recipient address')}
+                >
+                  <Icon name="copy" size={14} color={theme.colors.text} />
+                  <Text style={[styles.copyButtonText, { color: theme.colors.text }]}>Copy</Text>
+                </TouchableOpacity>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* Guardians */}
+        {dossier.guardians && dossier.guardians.length > 0 && (
+          <View style={[styles.panel, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+            <View style={styles.panelHeaderRow}>
+              <Text style={[styles.panelTitle, { color: theme.colors.text }]}>Guardian Protection</Text>
+              <View style={styles.guardianBadge}>
+                <Icon name="shield" size={14} color={theme.colors.primary} />
+                <Text style={[styles.guardianBadgeText, { color: theme.colors.primary }]}>
+                  {dossier.guardianConfirmationCount?.toString() || '0'} / {dossier.guardianThreshold?.toString() || '0'}
+                </Text>
+              </View>
+            </View>
+
+            <View style={[styles.guardianInfo, { backgroundColor: theme.colors.surface }]}>
+              <Text style={[styles.guardianInfoText, { color: theme.colors.textSecondary }]}>
+                Requires {dossier.guardianThreshold?.toString() || '0'} out of {dossier.guardians.length} guardian approvals before release
+              </Text>
+            </View>
+
+            {dossier.guardians.map((guardian, index) => (
+              <View key={index} style={[styles.recipientItem, { borderTopColor: theme.colors.border }]}>
+                <Text style={[styles.recipientNumber, { color: theme.colors.text }]}>Guardian #{index + 1}</Text>
+                <Text style={[styles.recipientAddress, { color: theme.colors.textSecondary }]} numberOfLines={1}>
+                  {guardian}
+                </Text>
+                <TouchableOpacity
+                  style={[styles.copyButton, { borderColor: theme.colors.border }]}
+                  onPress={() => copyToClipboard(guardian, 'Guardian address')}
                 >
                   <Icon name="copy" size={14} color={theme.colors.text} />
                   <Text style={[styles.copyButtonText, { color: theme.colors.text }]}>Copy</Text>
@@ -1039,5 +1095,34 @@ const styles = StyleSheet.create({
   loaderGif: {
     width: 200,
     height: 200,
+  },
+  // Guardian styles
+  panelHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  guardianBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+  },
+  guardianBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  guardianInfo: {
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  guardianInfoText: {
+    fontSize: 13,
+    lineHeight: 18,
   },
 });

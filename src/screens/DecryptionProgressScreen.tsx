@@ -19,6 +19,8 @@ import { decryptFile } from '../lib/tacoMobile';
 import RNFS from 'react-native-fs';
 import { Buffer } from 'buffer';
 import type { DossierManifest } from '../types/dossier';
+import { FileViewer } from '../components/FileViewer';
+import { AudioPlayer } from '../components/AudioPlayer';
 
 type FileStatus = 'pending' | 'downloading' | 'decrypting' | 'completed' | 'failed';
 
@@ -31,6 +33,7 @@ interface DecryptedFile {
   localPath?: string;
   fileName?: string;
   fileType?: string;
+  mimeType?: string;
   size?: number;
 }
 
@@ -50,6 +53,15 @@ export const DecryptionProgressScreen = () => {
   const [files, setFiles] = useState<DecryptedFile[]>([]);
   const [isDecrypting, setIsDecrypting] = useState(true);
   const [isLoadingManifest, setIsLoadingManifest] = useState(true);
+  const [viewingFile, setViewingFile] = useState<{
+    uri: string;
+    name: string;
+    type: string;
+  } | null>(null);
+  const [playingAudio, setPlayingAudio] = useState<{
+    uri: string;
+    name: string;
+  } | null>(null);
 
   useEffect(() => {
     startDecryption();
@@ -99,6 +111,7 @@ export const DecryptionProgressScreen = () => {
         progress: 0,
         fileName: fileEntry.originalName,
         fileType: getMimeTypeCategory(fileEntry.mimeType),
+        mimeType: fileEntry.mimeType,
         size: fileEntry.sizeBytes,
       }));
 
@@ -172,7 +185,31 @@ export const DecryptionProgressScreen = () => {
     return `${(bytes / Math.pow(k, i)).toFixed(2)} ${sizes[i]}`;
   };
 
-  const handleFileOpen = async (file: DecryptedFile) => {
+  const handleFileView = (file: DecryptedFile) => {
+    if (!file.localPath || !file.mimeType) return;
+
+    // Check if file is audio
+    if (file.mimeType.startsWith('audio/')) {
+      setPlayingAudio({
+        uri: `file://${file.localPath}`,
+        name: file.fileName || `File ${file.index + 1}`,
+      });
+      return;
+    }
+
+    // Check if file can be previewed in-app (images and PDFs)
+    const canPreview = file.mimeType.startsWith('image/') || file.mimeType.includes('pdf');
+
+    if (canPreview) {
+      setViewingFile({
+        uri: `file://${file.localPath}`,
+        name: file.fileName || `File ${file.index + 1}`,
+        type: file.mimeType,
+      });
+    }
+  };
+
+  const handleFileShare = async (file: DecryptedFile) => {
     if (!file.localPath) return;
     try {
       // Use Share API which works reliably on both simulator and device
@@ -270,21 +307,33 @@ export const DecryptionProgressScreen = () => {
 
             {file.status === 'completed' && file.localPath && (
               <View style={styles.actionsContainer}>
-                <TouchableOpacity
-                  style={[styles.actionButton, { backgroundColor: theme.colors.primary }]}
-                  onPress={() => handleFileOpen(file)}
-                >
-                  <Icon name={getFileActionIcon(file.fileType)} size={16} color="#FFFFFF" />
-                  <Text style={styles.actionButtonText}>{getFileActionLabel(file.fileType)}</Text>
-                </TouchableOpacity>
+                {file.mimeType && (file.mimeType.startsWith('image/') || file.mimeType.includes('pdf') || file.mimeType.startsWith('audio/')) ? (
+                  <>
+                    <TouchableOpacity
+                      style={[styles.actionButton, { backgroundColor: theme.colors.primary }]}
+                      onPress={() => handleFileView(file)}
+                    >
+                      <Icon name={getFileActionIcon(file.fileType)} size={16} color="#FFFFFF" />
+                      <Text style={styles.actionButtonText}>{getFileActionLabel(file.fileType)}</Text>
+                    </TouchableOpacity>
 
-                <TouchableOpacity
-                  style={[styles.actionButton, styles.secondaryActionButton, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
-                  onPress={() => handleFileOpen(file)}
-                >
-                  <Icon name="share" size={16} color={theme.colors.text} />
-                  <Text style={[styles.actionButtonText, { color: theme.colors.text }]}>Share</Text>
-                </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.actionButton, styles.secondaryActionButton, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
+                      onPress={() => handleFileShare(file)}
+                    >
+                      <Icon name="share" size={16} color={theme.colors.text} />
+                      <Text style={[styles.actionButtonText, { color: theme.colors.text }]}>Share</Text>
+                    </TouchableOpacity>
+                  </>
+                ) : (
+                  <TouchableOpacity
+                    style={[styles.actionButton, { backgroundColor: theme.colors.primary }]}
+                    onPress={() => handleFileShare(file)}
+                  >
+                    <Icon name={getFileActionIcon(file.fileType)} size={16} color="#FFFFFF" />
+                    <Text style={styles.actionButtonText}>{getFileActionLabel(file.fileType)}</Text>
+                  </TouchableOpacity>
+                )}
               </View>
             )}
           </View>
@@ -310,6 +359,25 @@ export const DecryptionProgressScreen = () => {
             <Text style={styles.doneButtonText}>Done</Text>
           </TouchableOpacity>
         </View>
+      )}
+
+      {viewingFile && (
+        <FileViewer
+          visible={true}
+          fileUri={viewingFile.uri}
+          fileName={viewingFile.name}
+          fileType={viewingFile.type}
+          onClose={() => setViewingFile(null)}
+        />
+      )}
+
+      {playingAudio && (
+        <AudioPlayer
+          visible={true}
+          audioUri={playingAudio.uri}
+          fileName={playingAudio.name}
+          onClose={() => setPlayingAudio(null)}
+        />
       )}
     </SafeAreaView>
   );

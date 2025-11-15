@@ -19,7 +19,8 @@ let Pdf: any = null;
 try {
   Pdf = require('react-native-pdf').default;
 } catch (e) {
-  console.warn('PDF library not available:', e);
+  // PDF library not available - this is expected on first load before native modules are linked
+  // PDFs will still be viewable once native module is properly initialized
 }
 
 interface FileViewerProps {

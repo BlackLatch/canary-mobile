@@ -67,11 +67,16 @@ export const CreateDossierScreen = () => {
   const [expandedRecommendations, setExpandedRecommendations] = useState<ReleaseMode | null>(null);
   const [step2SubStep, setStep2SubStep] = useState<'selection' | 'contacts'>('selection'); // selection or contacts management
 
-  // Step 3: Check-in Schedule
+  // Step 3: Guardian Configuration
+  const [guardians, setGuardians] = useState<string[]>(['']);
+  const [guardianThreshold, setGuardianThreshold] = useState('1');
+  const [enableGuardians, setEnableGuardians] = useState(false);
+
+  // Step 4: Check-in Schedule (was Step 3)
   const [checkInInterval, setCheckInInterval] = useState('');
   const [customInterval, setCustomInterval] = useState('');
 
-  // Step 4: File Encryption (simplified for now)
+  // Step 5: File Encryption (was Step 4)
   const [hasAcceptedTerms, setHasAcceptedTerms] = useState(false);
   const [termsSignature, setTermsSignature] = useState<string | null>(null);
   const [recordingMode, setRecordingMode] = useState<RecordingMode>(null);
@@ -218,25 +223,41 @@ export const CreateDossierScreen = () => {
         }
         return true;
       case 3:
+        // Guardian step - always valid (guardians are optional)
+        if (enableGuardians) {
+          const validGuardians = guardians.filter(g => g.trim().length > 0);
+          const threshold = parseInt(guardianThreshold);
+          return validGuardians.length > 0 &&
+                 !isNaN(threshold) &&
+                 threshold >= 1 &&
+                 threshold <= validGuardians.length;
+        }
+        return true;
+      case 4:
         if (checkInInterval === 'custom') {
           const hours = parseInt(customInterval);
           return !isNaN(hours) && hours >= 1 && hours <= 8760;
         }
         return checkInInterval.length > 0;
-      case 4:
-        return hasAcceptedTerms;
       case 5:
+        return hasAcceptedTerms;
+      case 6:
         // Finalize: Ensure all previous steps are complete AND files are uploaded
         const step1Valid = name.trim().length > 0;
         const step2Valid = releaseMode !== null &&
           (releaseMode === 'public' || emergencyContacts.filter(c => c.trim().length > 0).length > 0);
-        const step3Valid = checkInInterval === 'custom'
+        const step3Valid = !enableGuardians || (
+          guardians.filter(g => g.trim().length > 0).length > 0 &&
+          parseInt(guardianThreshold) >= 1 &&
+          parseInt(guardianThreshold) <= guardians.filter(g => g.trim().length > 0).length
+        );
+        const step4Valid = checkInInterval === 'custom'
           ? !isNaN(parseInt(customInterval)) && parseInt(customInterval) >= 1 && parseInt(customInterval) <= 8760
           : checkInInterval.length > 0;
-        const step4Valid = hasAcceptedTerms;
+        const step5Valid = hasAcceptedTerms;
         const filesUploaded = uploadedFiles.length > 0;
 
-        return step1Valid && step2Valid && step3Valid && step4Valid && filesUploaded;
+        return step1Valid && step2Valid && step3Valid && step4Valid && step5Valid && filesUploaded;
       default:
         return false;
     }
@@ -244,13 +265,13 @@ export const CreateDossierScreen = () => {
 
   // Navigation handlers
   const handleNext = () => {
-    if (currentStep < 5 && isStepValid(currentStep)) {
+    if (currentStep < 6 && isStepValid(currentStep)) {
       setCurrentStep(currentStep + 1);
       // Reset step 2 sub-step when leaving step 2
       if (currentStep === 2) {
         setStep2SubStep('selection');
       }
-    } else if (currentStep === 5) {
+    } else if (currentStep === 6) {
       handleFinalize();
     }
   };
@@ -285,6 +306,27 @@ export const CreateDossierScreen = () => {
     const updated = [...emergencyContacts];
     updated[index] = value;
     setEmergencyContacts(updated);
+  };
+
+  // Guardian management
+  const addGuardian = () => {
+    setGuardians([...guardians, '']);
+  };
+
+  const removeGuardian = (index: number) => {
+    const updated = guardians.filter((_, i) => i !== index);
+    setGuardians(updated.length > 0 ? updated : ['']);
+    // Update threshold if it's greater than the number of guardians
+    const validGuardians = updated.filter(g => g.trim().length > 0).length;
+    if (parseInt(guardianThreshold) > validGuardians) {
+      setGuardianThreshold(Math.max(1, validGuardians).toString());
+    }
+  };
+
+  const updateGuardian = (index: number, value: string) => {
+    const updated = [...guardians];
+    updated[index] = value;
+    setGuardians(updated);
   };
 
   // Calculate next check-in times
@@ -341,6 +383,12 @@ export const CreateDossierScreen = () => {
         ? emergencyContacts.filter(c => c.trim().length > 0) as `0x${string}`[]
         : [];
 
+      // Prepare guardians if enabled
+      const finalGuardians = enableGuardians
+        ? guardians.filter(g => g.trim().length > 0) as `0x${string}`[]
+        : [];
+      const finalThreshold = enableGuardians ? parseInt(guardianThreshold) : 0;
+
       // Create the dossier
       setCreationStatus('Encrypting and uploading files...');
       const result = await createDossier(
@@ -348,7 +396,9 @@ export const CreateDossierScreen = () => {
         description.trim(),
         BigInt(intervalSeconds),
         recipients,
-        uploadedFiles
+        uploadedFiles,
+        finalGuardians,
+        finalThreshold
       );
 
       if (result.success) {
@@ -374,7 +424,7 @@ export const CreateDossierScreen = () => {
   // Render step indicators
   const renderStepIndicators = () => (
     <View style={styles.stepIndicators}>
-      {[1, 2, 3, 4, 5].map((step, index) => {
+      {[1, 2, 3, 4, 5, 6].map((step, index) => {
         // A step is completed if it's before the current step AND it's valid
         const isCompleted = step < currentStep && isStepValid(step);
 
@@ -397,7 +447,7 @@ export const CreateDossierScreen = () => {
                 {isCompleted ? '✓' : step}
               </Text>
             </TouchableOpacity>
-            {index < 4 && (
+            {index < 5 && (
               <View
                 style={[
                   styles.stepConnector,
@@ -424,6 +474,8 @@ export const CreateDossierScreen = () => {
         return renderStep4();
       case 5:
         return renderStep5();
+      case 6:
+        return renderStep6();
       default:
         return null;
     }
@@ -436,7 +488,7 @@ export const CreateDossierScreen = () => {
         Dossier Details
       </Text>
       <Text style={[styles.stepSubtitle, { color: theme.colors.textSecondary }]}>
-        Step 1 of 5
+        Step 1 of 6
       </Text>
 
       <View style={[styles.card, { backgroundColor: theme.colors.card }]}>
@@ -511,7 +563,7 @@ export const CreateDossierScreen = () => {
         Visibility
       </Text>
       <Text style={[styles.stepSubtitle, { color: theme.colors.textSecondary }]}>
-        Step 2 of 5
+        Step 2 of 6
       </Text>
 
       <View style={[styles.card, { backgroundColor: theme.colors.card }]}>
@@ -643,7 +695,7 @@ export const CreateDossierScreen = () => {
         Emergency Contacts
       </Text>
       <Text style={[styles.stepSubtitle, { color: theme.colors.textSecondary }]}>
-        Step 2 of 5
+        Step 2 of 6
       </Text>
 
       <View style={[styles.card, { backgroundColor: theme.colors.card }]}>
@@ -706,8 +758,147 @@ export const CreateDossierScreen = () => {
     return renderStep2Selection();
   };
 
-  // Step 3: Check-in Schedule
+  // Step 3: Guardian Configuration (NEW)
   const renderStep3 = () => {
+    const validGuardians = guardians.filter(g => g.trim().length > 0);
+    const threshold = parseInt(guardianThreshold) || 1;
+
+    return (
+      <View style={styles.stepContent}>
+        <Text style={[styles.stepTitle, { color: theme.colors.text }]}>
+          Guardian Protection
+        </Text>
+        <Text style={[styles.stepSubtitle, { color: theme.colors.textSecondary }]}>
+          Step 3 of 6
+        </Text>
+
+        <View style={[styles.card, { backgroundColor: theme.colors.card }]}>
+          <View style={styles.guardianToggleContainer}>
+            <View style={styles.guardianToggleLeft}>
+              <Icon name="shield" size={20} color={theme.colors.primary} />
+              <Text style={[styles.label, { color: theme.colors.text }]}>
+                Enable Guardian Protection
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={[
+                styles.toggle,
+                enableGuardians && styles.toggleActive,
+                { backgroundColor: enableGuardians ? theme.colors.primary : theme.colors.surface }
+              ]}
+              onPress={() => setEnableGuardians(!enableGuardians)}
+            >
+              <View style={[
+                styles.toggleKnob,
+                enableGuardians && styles.toggleKnobActive,
+              ]} />
+            </TouchableOpacity>
+          </View>
+
+          <Text style={[styles.infoText, { color: theme.colors.textSecondary, marginTop: 8 }]}>
+            Require multiple guardians to approve release for additional security
+          </Text>
+        </View>
+
+        {enableGuardians && (
+          <>
+            <View style={[styles.card, { backgroundColor: theme.colors.card }]}>
+              <Text style={[styles.label, { color: theme.colors.text }]}>
+                Guardian Addresses <Text style={styles.required}>*</Text>
+              </Text>
+              <Text style={[styles.helperText, { color: theme.colors.textSecondary }]}>
+                Add Ethereum addresses that will act as guardians
+              </Text>
+
+              {guardians.map((guardian, index) => (
+                <View key={index} style={styles.contactRow}>
+                  <TextInput
+                    style={[styles.input, styles.contactInput, {
+                      backgroundColor: theme.colors.surface,
+                      color: theme.colors.text,
+                      borderColor: theme.colors.border,
+                    }]}
+                    placeholder="0x..."
+                    placeholderTextColor={theme.colors.textSecondary}
+                    value={guardian}
+                    onChangeText={(text) => updateGuardian(index, text)}
+                    autoCapitalize="none"
+                  />
+                  {guardians.length > 1 && (
+                    <TouchableOpacity
+                      style={styles.removeButton}
+                      onPress={() => removeGuardian(index)}
+                    >
+                      <Icon name="x" size={20} color={theme.colors.error} />
+                    </TouchableOpacity>
+                  )}
+                </View>
+              ))}
+              <TouchableOpacity
+                style={[styles.addButton, { backgroundColor: theme.colors.primary }]}
+                onPress={addGuardian}
+              >
+                <Icon name="plus" size={16} color="#FFFFFF" />
+                <Text style={styles.addButtonText}>Add Another Guardian</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={[styles.card, { backgroundColor: theme.colors.card }]}>
+              <Text style={[styles.label, { color: theme.colors.text }]}>
+                Approval Threshold <Text style={styles.required}>*</Text>
+              </Text>
+              <Text style={[styles.helperText, { color: theme.colors.textSecondary }]}>
+                Number of guardians required to approve release ({validGuardians.length > 0 ? `1-${validGuardians.length}` : '1'})
+              </Text>
+
+              <View style={[styles.thresholdContainer, {
+                backgroundColor: theme.colors.surface,
+                borderColor: theme.colors.border,
+              }]}>
+                <TouchableOpacity
+                  style={[styles.thresholdButton, { borderColor: theme.colors.border }]}
+                  onPress={() => {
+                    const newThreshold = Math.max(1, threshold - 1);
+                    setGuardianThreshold(newThreshold.toString());
+                  }}
+                  disabled={threshold <= 1}
+                >
+                  <Icon name="minus" size={20} color={threshold <= 1 ? theme.colors.textSecondary : theme.colors.text} />
+                </TouchableOpacity>
+
+                <Text style={[styles.thresholdValue, { color: theme.colors.text }]}>
+                  {guardianThreshold}
+                </Text>
+
+                <TouchableOpacity
+                  style={[styles.thresholdButton, { borderColor: theme.colors.border }]}
+                  onPress={() => {
+                    const newThreshold = Math.min(validGuardians.length || 1, threshold + 1);
+                    setGuardianThreshold(newThreshold.toString());
+                  }}
+                  disabled={threshold >= (validGuardians.length || 1)}
+                >
+                  <Icon name="plus" size={20} color={threshold >= (validGuardians.length || 1) ? theme.colors.textSecondary : theme.colors.text} />
+                </TouchableOpacity>
+              </View>
+
+              <View style={[styles.infoCard, { backgroundColor: theme.colors.surface, marginTop: 16 }]}>
+                <Text style={[styles.infoTitle, { color: theme.colors.text }]}>
+                  How it works
+                </Text>
+                <Text style={[styles.infoText, { color: theme.colors.textSecondary }]}>
+                  When your dossier expires, {guardianThreshold} out of {validGuardians.length || 1} guardian(s) must confirm before the dossier is released.
+                </Text>
+              </View>
+            </View>
+          </>
+        )}
+      </View>
+    );
+  };
+
+  // Step 4: Check-in Schedule (was Step 3)
+  const renderStep4 = () => {
     const checkInTimes = getNextCheckInTimes();
 
     return (
@@ -716,7 +907,7 @@ export const CreateDossierScreen = () => {
           Check-in Schedule
         </Text>
         <Text style={[styles.stepSubtitle, { color: theme.colors.textSecondary }]}>
-          Step 3 of 5
+          Step 4 of 6
         </Text>
 
         <View style={[styles.card, { backgroundColor: theme.colors.card }]}>
@@ -850,14 +1041,14 @@ export const CreateDossierScreen = () => {
     );
   };
 
-  // Step 4: File Encryption
-  const renderStep4 = () => (
+  // Step 5: File Encryption (was Step 4)
+  const renderStep5 = () => (
     <View style={styles.stepContent}>
       <Text style={[styles.stepTitle, { color: theme.colors.text }]}>
         File Encryption
       </Text>
       <Text style={[styles.stepSubtitle, { color: theme.colors.textSecondary }]}>
-        Step 4 of 5
+        Step 5 of 6
       </Text>
 
       {!hasAcceptedTerms ? (
@@ -1074,9 +1265,10 @@ export const CreateDossierScreen = () => {
     </View>
   );
 
-  // Step 5: Finalize
-  const renderStep5 = () => {
+  // Step 6: Finalize (was Step 5)
+  const renderStep6 = () => {
     const validContacts = emergencyContacts.filter(c => c.trim().length > 0);
+    const validGuardians = guardians.filter(g => g.trim().length > 0);
     const intervalDisplay = checkInInterval === 'custom'
       ? `${customInterval} hour(s)`
       : INTERVAL_PRESETS.find(p => p.value === checkInInterval)?.label || '';
@@ -1087,7 +1279,7 @@ export const CreateDossierScreen = () => {
           Finalize
         </Text>
         <Text style={[styles.stepSubtitle, { color: theme.colors.textSecondary }]}>
-          Step 5 of 5
+          Step 6 of 6
         </Text>
 
         <View style={[styles.card, { backgroundColor: theme.colors.card }]}>
@@ -1111,6 +1303,22 @@ export const CreateDossierScreen = () => {
           <Text style={[styles.summaryValue, { color: theme.colors.text }]}>
             {intervalDisplay}
           </Text>
+
+          {enableGuardians && validGuardians.length > 0 && (
+            <>
+              <Text style={[styles.summaryLabel, { color: theme.colors.textSecondary }]}>
+                Guardian Protection
+              </Text>
+              <Text style={[styles.summaryValue, { color: theme.colors.text }]}>
+                {guardianThreshold} of {validGuardians.length} guardians required
+              </Text>
+              {validGuardians.map((guardian, index) => (
+                <Text key={index} style={[styles.summaryContact, { color: theme.colors.text }]}>
+                  • {guardian}
+                </Text>
+              ))}
+            </>
+          )}
 
           {releaseMode === 'contacts' && validContacts.length > 0 && (
             <>
@@ -1196,7 +1404,7 @@ export const CreateDossierScreen = () => {
             <ActivityIndicator color="#FFFFFF" />
           ) : (
             <Text style={styles.nextNavButtonText}>
-              {currentStep === 5 ? 'Finalize' : 'Next'}
+              {currentStep === 6 ? 'Finalize' : 'Next'}
             </Text>
           )}
         </TouchableOpacity>
@@ -1295,23 +1503,24 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 20,
+    paddingVertical: 16,
+    paddingHorizontal: 8,
     gap: 0,
   },
   stepIndicator: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: '#E5E7EB',
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 1,
   },
   stepConnector: {
-    width: 24,
+    width: 20,
     height: 2,
     backgroundColor: '#E5E7EB',
-    marginHorizontal: 4,
+    marginHorizontal: 2,
   },
   stepConnectorCompleted: {
     backgroundColor: '#10B981',
@@ -1323,7 +1532,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#10B981',
   },
   stepIndicatorText: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
     color: '#6B7280',
   },
@@ -1677,6 +1886,7 @@ const styles = StyleSheet.create({
   },
   fileInfo: {
     flex: 1,
+    minWidth: 0,
   },
   fileNameRow: {
     flexDirection: 'row',
@@ -1688,6 +1898,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     flex: 1,
+    minWidth: 0,
   },
   fileSize: {
     fontSize: 12,
@@ -1721,6 +1932,67 @@ const styles = StyleSheet.create({
   },
   sliderLabelText: {
     fontSize: 12,
+  },
+  // Guardian styles
+  guardianToggleContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  guardianToggleLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  toggle: {
+    width: 52,
+    height: 28,
+    borderRadius: 14,
+    padding: 2,
+    justifyContent: 'center',
+  },
+  toggleActive: {
+    justifyContent: 'flex-end',
+  },
+  toggleKnob: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  toggleKnobActive: {
+    alignSelf: 'flex-end',
+  },
+  thresholdContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 8,
+    marginTop: 12,
+  },
+  thresholdButton: {
+    width: 44,
+    height: 44,
+    borderWidth: 1,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  thresholdValue: {
+    fontSize: 24,
+    fontWeight: '700',
+    marginHorizontal: 32,
+    minWidth: 40,
+    textAlign: 'center',
   },
   creationModalOverlay: {
     flex: 1,
