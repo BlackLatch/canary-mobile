@@ -13,7 +13,7 @@ import RNFS from 'react-native-fs';
 import { contractService } from '../lib/contract';
 import { encryptFileWithDossier, commitEncryptedFileToPinata } from '../lib/tacoMobile';
 import type { CommitResult } from '../lib/tacoMobile';
-import type { Dossier, Address, DeadmanCondition, FileInfo, TraceJson, DossierManifest, ManifestFileEntry } from '../types/dossier';
+import type { Dossier, Address, DeadmanCondition, FileInfo, TraceJson, DossierManifest, ManifestFileEntry, GuardianDossier, DossierReference } from '../types/dossier';
 import { useWallet } from './WalletContext';
 import { PINATA_CONFIG } from '../constants/taco';
 
@@ -35,6 +35,10 @@ interface DossierContextState {
   isLoading: boolean;
   error: string | null;
 
+  // Guardian state
+  guardianDossiers: GuardianDossier[];
+  guardianDossiersLoading: boolean;
+
   // Dossier operations
   loadDossiers: () => Promise<void>;
   refreshDossiers: () => Promise<void>;
@@ -43,7 +47,9 @@ interface DossierContextState {
     description: string,
     checkInInterval: bigint,
     recipients: Address[],
-    files: FileInfo[]
+    files: FileInfo[],
+    guardians?: Address[],
+    guardianThreshold?: number
   ) => Promise<CreateDossierResult>;
   checkIn: (dossierId: bigint) => Promise<OperationResult>;
   checkInAll: () => Promise<OperationResult>;
@@ -52,6 +58,10 @@ interface DossierContextState {
   updateSchedule: (dossierId: bigint, newInterval: bigint) => Promise<OperationResult>;
   releaseNow: (dossierId: bigint) => Promise<OperationResult>;
   permanentlyDisable: (dossierId: bigint) => Promise<OperationResult>;
+
+  // Guardian operations
+  loadGuardianDossiers: () => Promise<void>;
+  confirmRelease: (ownerAddress: Address, dossierId: bigint) => Promise<OperationResult>;
 
   // Selected dossier
   selectedDossier: Dossier | null;
@@ -71,14 +81,20 @@ export const DossierProvider: React.FC<DossierProviderProps> = ({ children }) =>
   const [error, setError] = useState<string | null>(null);
   const [selectedDossier, setSelectedDossier] = useState<Dossier | null>(null);
 
+  // Guardian state
+  const [guardianDossiers, setGuardianDossiers] = useState<GuardianDossier[]>([]);
+  const [guardianDossiersLoading, setGuardianDossiersLoading] = useState(false);
+
   /**
    * Load dossiers when wallet connects
    */
   useEffect(() => {
     if (isConnected && address) {
       loadDossiers();
+      loadGuardianDossiers();
     } else {
       setDossiers([]);
+      setGuardianDossiers([]);
       setSelectedDossier(null);
     }
   }, [isConnected, address]);
@@ -118,7 +134,9 @@ export const DossierProvider: React.FC<DossierProviderProps> = ({ children }) =>
     description: string,
     checkInInterval: bigint,
     recipients: Address[],
-    files: FileInfo[]
+    files: FileInfo[],
+    guardians: Address[] = [],
+    guardianThreshold: number = 0
   ): Promise<CreateDossierResult> => {
     if (!address) {
       return { success: false, error: 'No wallet connected' };
@@ -238,7 +256,9 @@ export const DossierProvider: React.FC<DossierProviderProps> = ({ children }) =>
         checkInInterval,
         finalRecipients,
         encryptedFileHashes,
-        signer
+        signer,
+        guardians,
+        guardianThreshold
       );
 
       if (result.success && result.dossierId) {
@@ -479,6 +499,116 @@ export const DossierProvider: React.FC<DossierProviderProps> = ({ children }) =>
   };
 
   /**
+   * Load dossiers where current user is a guardian
+   */
+  const loadGuardianDossiers = async () => {
+    if (!address) {
+      console.warn('⚠️ No address connected');
+      return;
+    }
+
+    try {
+      setGuardianDossiersLoading(true);
+      console.log('🛡️ Loading guardian dossiers for:', address);
+
+      // Get all dossiers where user is a guardian
+      const references = await contractService.getDossiersWhereGuardian(address);
+      console.log(`📋 Found ${references.length} dossiers where user is guardian`);
+
+      // Fetch full dossier details for each reference
+      const guardianDossiersData: GuardianDossier[] = [];
+
+      for (const ref of references) {
+        try {
+          const dossier = await contractService.getDossier(ref.owner, ref.dossierId);
+
+          if (dossier) {
+            // Check if time-expired
+            const now = BigInt(Math.floor(Date.now() / 1000));
+            const expiresAt = dossier.lastCheckIn + dossier.checkInInterval;
+            const isExpired = now > expiresAt;
+
+            // Check if threshold is met
+            const isThresholdMet = await contractService.isGuardianThresholdMet(ref.owner, ref.dossierId);
+
+            // Check if current user has confirmed
+            const hasCurrentUserConfirmed = await contractService.hasGuardianConfirmed(
+              ref.owner,
+              ref.dossierId,
+              address
+            );
+
+            // Determine if decryptable (expired AND threshold met)
+            const isDecryptable = isExpired && isThresholdMet;
+
+            guardianDossiersData.push({
+              ...dossier,
+              owner: ref.owner,
+              isDecryptable,
+              isThresholdMet,
+              hasCurrentUserConfirmed,
+            });
+          }
+        } catch (err) {
+          console.error(`❌ Failed to load dossier ${ref.dossierId.toString()}:`, err);
+        }
+      }
+
+      // Sort by status: expired & awaiting confirmation first
+      guardianDossiersData.sort((a, b) => {
+        const aExpired = !a.isActive && !a.isThresholdMet;
+        const bExpired = !b.isActive && !b.isThresholdMet;
+
+        if (aExpired && !bExpired) return -1;
+        if (!aExpired && bExpired) return 1;
+        return 0;
+      });
+
+      setGuardianDossiers(guardianDossiersData);
+      console.log(`✅ Loaded ${guardianDossiersData.length} guardian dossiers`);
+    } catch (err) {
+      console.error('❌ Failed to load guardian dossiers:', err);
+    } finally {
+      setGuardianDossiersLoading(false);
+    }
+  };
+
+  /**
+   * Confirm release as a guardian
+   */
+  const confirmRelease = async (ownerAddress: Address, dossierId: bigint): Promise<OperationResult> => {
+    try {
+      setGuardianDossiersLoading(true);
+
+      const signer = await getSigner();
+      if (!signer) {
+        return { success: false, error: 'Failed to get signer' };
+      }
+
+      console.log(`🛡️ Confirming release for dossier ${dossierId.toString()}`);
+
+      const result = await contractService.confirmRelease(ownerAddress, dossierId, signer);
+
+      if (result.success) {
+        console.log('✅ Release confirmed successfully');
+
+        // Reload guardian dossiers to reflect the change
+        await loadGuardianDossiers();
+
+        return { success: true };
+      } else {
+        return { success: false, error: result.error };
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to confirm release';
+      console.error('❌ Failed to confirm release:', err);
+      return { success: false, error: errorMessage };
+    } finally {
+      setGuardianDossiersLoading(false);
+    }
+  };
+
+  /**
    * Select a dossier for viewing/editing
    */
   const selectDossier = (dossier: Dossier | null) => {
@@ -538,6 +668,8 @@ export const DossierProvider: React.FC<DossierProviderProps> = ({ children }) =>
     dossiers,
     isLoading,
     error,
+    guardianDossiers,
+    guardianDossiersLoading,
     loadDossiers,
     refreshDossiers: loadDossiers,
     createDossier,
@@ -548,6 +680,8 @@ export const DossierProvider: React.FC<DossierProviderProps> = ({ children }) =>
     updateSchedule,
     releaseNow,
     permanentlyDisable,
+    loadGuardianDossiers,
+    confirmRelease,
     selectedDossier,
     selectDossier,
   };
