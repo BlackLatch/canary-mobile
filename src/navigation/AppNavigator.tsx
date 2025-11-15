@@ -5,11 +5,13 @@ import Icon from 'react-native-vector-icons/Feather';
 import { useTheme } from '../contexts/ThemeContext';
 import { CheckInScreen } from '../screens/CheckInScreen';
 import { DossiersScreen } from '../screens/DossiersScreen';
+import { GuardScreen } from '../screens/GuardScreen';
 import { MonitorScreen } from '../screens/MonitorScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
 import { CreateDossierScreen } from '../screens/CreateDossierScreen';
 import { DossierDetailScreen } from '../screens/DossierDetailScreen';
 import { DecryptionProgressScreen } from '../screens/DecryptionProgressScreen';
+import { DossierCreationProgressScreen } from '../screens/DossierCreationProgressScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -46,7 +48,7 @@ const TabNavigator = () => {
         options={{
           tabBarLabel: 'Check In',
           tabBarIcon: ({ color, size }) => (
-            <Icon name="check-circle" size={size - 2} color={color} />
+            <Icon name="heart" size={size - 2} color={color} />
           ),
         }}
       />
@@ -61,12 +63,22 @@ const TabNavigator = () => {
         }}
       />
       <Tab.Screen
+        name="Guard"
+        component={GuardScreen}
+        options={{
+          tabBarLabel: 'Guard',
+          tabBarIcon: ({ color, size }) => (
+            <Icon name="shield" size={size - 2} color={color} />
+          ),
+        }}
+      />
+      <Tab.Screen
         name="Monitor"
         component={MonitorScreen}
         options={{
-          tabBarLabel: 'Monitor',
+          tabBarLabel: 'Receive',
           tabBarIcon: ({ color, size }) => (
-            <Icon name="activity" size={size - 2} color={color} />
+            <Icon name="inbox" size={size - 2} color={color} />
           ),
         }}
       />
@@ -111,6 +123,14 @@ export const AppNavigator = () => {
         component={DecryptionProgressScreen}
         options={{
           presentation: 'card',
+        }}
+      />
+      <Stack.Screen
+        name="DossierCreationProgress"
+        component={DossierCreationProgressScreen}
+        options={{
+          presentation: 'card',
+          gestureEnabled: false,
         }}
       />
     </Stack.Navigator>

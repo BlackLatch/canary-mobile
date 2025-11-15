@@ -13,6 +13,38 @@ export interface Dossier {
   lastCheckIn: bigint; // timestamp
   encryptedFileHashes: string[]; // IPFS CIDs
   recipients: Address[];
+  guardians: Address[]; // Guardian addresses for multi-sig release approval
+  guardianThreshold: bigint; // Minimum confirmations required (m-of-n)
+  guardianConfirmationCount: bigint; // Current number of confirmations
+}
+
+// Reference to a dossier owned by another address
+export interface DossierReference {
+  owner: Address; // Address of the dossier owner
+  dossierId: bigint; // ID of the dossier
+}
+
+// Extended dossier interface for guardian view with additional metadata
+export interface GuardianDossier extends Dossier {
+  owner: Address; // Owner of the dossier
+  isDecryptable?: boolean; // Whether threshold is met and can be decrypted
+  isThresholdMet?: boolean; // Whether guardian approval threshold is met
+  hasCurrentUserConfirmed?: boolean; // Whether current user has confirmed
+}
+
+// Extended dossier interface for recipient view (private recipients)
+export interface RecipientDossier extends Dossier {
+  owner: Address; // Owner of the dossier
+  isDecryptable?: boolean; // Whether dossier can be decrypted
+  isThresholdMet?: boolean; // Whether guardian approval threshold is met
+}
+
+// Emergency contact entry stored in localStorage
+export interface EmergencyContact {
+  id: string; // Unique identifier
+  address: Address; // Ethereum address of the contact
+  label: string; // User-friendly label
+  addedAt: number; // Timestamp when added
 }
 
 export interface DeadmanCondition {
