@@ -1,9 +1,28 @@
 import React from 'react';
 import { ActivityIndicator, View, StyleSheet, Image, Text } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useWallet } from '../contexts/WalletContext';
 import { LoginScreen } from '../screens/LoginScreen';
+import { ImportAccountScreen } from '../screens/ImportAccountScreen';
 import { AppNavigator } from '../navigation/AppNavigator';
+
+const UnauthStack = createNativeStackNavigator();
+
+const UnauthenticatedNavigator = () => {
+  return (
+    <NavigationContainer>
+      <UnauthStack.Navigator
+        screenOptions={{
+          headerShown: false,
+        }}
+      >
+        <UnauthStack.Screen name="Login" component={LoginScreen} />
+        <UnauthStack.Screen name="ImportAccount" component={ImportAccountScreen} />
+      </UnauthStack.Navigator>
+    </NavigationContainer>
+  );
+};
 
 export const AuthenticatedApp = () => {
   const { address, isLoading } = useWallet();
@@ -23,9 +42,9 @@ export const AuthenticatedApp = () => {
     );
   }
 
-  // Show LoginScreen if no wallet is connected
+  // Show unauthenticated navigator if no wallet is connected
   if (!address) {
-    return <LoginScreen />;
+    return <UnauthenticatedNavigator />;
   }
 
   // Show main app with navigation if wallet is connected
@@ -44,6 +63,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F9FAFB',
   },
   logoContainer: {
+    flexDirection: 'column',
     alignItems: 'center',
   },
   logo: {

@@ -120,7 +120,7 @@ export const SettingsScreen = () => {
 
   const handleExportPrivateKey = async () => {
     if (walletType !== 'burner') {
-      Alert.alert('Not Available', 'Private key export is only available for burner wallets');
+      Alert.alert('Not Available', 'Private key export is only available for local accounts');
       return;
     }
 
@@ -336,7 +336,7 @@ export const SettingsScreen = () => {
               <Text style={[styles.infoLabel, { color: theme.colors.textSecondary }]}>Type</Text>
               <Text style={[styles.infoValue, { color: theme.colors.text }]}>
                 {walletType === 'burner'
-                  ? 'Burner Wallet'
+                  ? 'Local Account'
                   : walletType === 'walletconnect'
                   ? 'WalletConnect'
                   : walletType === 'embedded'
@@ -363,7 +363,7 @@ export const SettingsScreen = () => {
                 onPress={handleBurnWallet}
               >
                 <Text style={[styles.menuButtonText, styles.dangerText]}>
-                  Burn Wallet
+                  Delete Account
                 </Text>
                 <Text style={[styles.menuButtonIcon, styles.dangerText]}>
                   ›
@@ -510,7 +510,7 @@ export const SettingsScreen = () => {
             <Text style={[styles.cardDescription, { color: theme.colors.textSecondary }]}>
               • End-to-end encryption for all dossiers{'\n'}
               • No personal information required{'\n'}
-              • Anonymous burner wallets{'\n'}
+              • Local accounts{'\n'}
               • Decentralized storage on IPFS/Codex{'\n'}
               • On-chain proofs for verification
             </Text>

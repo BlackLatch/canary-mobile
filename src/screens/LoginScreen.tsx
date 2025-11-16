@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,39 +6,101 @@ import {
   Image,
   StyleSheet,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useWallet } from '../contexts/WalletContext';
+import { WalletConnectModal } from '../components/WalletConnectModal';
+import { LocalAccountCard } from '../components/LocalAccountCard';
+import { burnerWalletService } from '../lib/burnerWallet';
 
-export const LoginScreen = () => {
-  const { connectBurnerWallet, address, isConnecting } = useWallet();
-  const [hasExistingWallet, setHasExistingWallet] = useState<boolean | null>(null);
+export const LoginScreen = ({ navigation }: any) => {
+  const { connectBurnerWallet, isConnecting } = useWallet();
+  const [showWalletModal, setShowWalletModal] = useState(false);
+  const [localAccount, setLocalAccount] = useState<string | null>(null);
+  const [isCheckingAccount, setIsCheckingAccount] = useState(true);
 
   useEffect(() => {
-    // Check if there's an existing burner wallet
-    // The WalletContext auto-connects on mount, so we just check if address exists
-    const timer = setTimeout(() => {
-      setHasExistingWallet(!!address);
-    }, 100);
+    checkForLocalAccount();
+  }, []);
 
-    return () => clearTimeout(timer);
-  }, [address]);
-
-  const handleConnect = async () => {
+  const checkForLocalAccount = async () => {
     try {
-      await connectBurnerWallet();
+      const wallet = await burnerWalletService.loadWallet();
+      if (wallet) {
+        setLocalAccount(wallet.address);
+      }
     } catch (error) {
-      console.error('Failed to connect wallet:', error);
+      // Wallet might be encrypted or doesn't exist
+      console.log('No accessible local account found');
+    } finally {
+      setIsCheckingAccount(false);
     }
   };
 
-  if (hasExistingWallet === null) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#E53935" />
-      </View>
+  const handleNewAccount = async () => {
+    try {
+      await connectBurnerWallet();
+    } catch (error) {
+      console.error('Failed to create new account:', error);
+    }
+  };
+
+  const handleImportAccount = () => {
+    navigation.navigate('ImportAccount');
+  };
+
+  const handleUseLocalAccount = async () => {
+    if (!localAccount) return;
+
+    try {
+      // Try to connect with the existing local account
+      await connectBurnerWallet();
+    } catch (error: any) {
+      // If it fails, it might be encrypted - prompt for password
+      if (error.message?.includes('decrypt') || error.message?.includes('password')) {
+        // TODO: Add password prompt dialog
+        Alert.alert(
+          'Password Required',
+          'This account is password protected. Please use Import Account to restore it with your password.',
+          [
+            { text: 'Import Account', onPress: handleImportAccount },
+            { text: 'Cancel', style: 'cancel' }
+          ]
+        );
+      } else {
+        console.error('Failed to use local account:', error);
+      }
+    }
+  };
+
+  const handleDeleteLocalAccount = () => {
+    Alert.alert(
+      'Delete Local Account',
+      'Are you sure you want to delete your local account? This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await burnerWalletService.deleteWallet();
+              setLocalAccount(null);
+              Alert.alert('Success', 'Local account deleted successfully');
+            } catch (error) {
+              console.error('Failed to delete account:', error);
+              Alert.alert('Error', 'Failed to delete account');
+            }
+          }
+        }
+      ]
     );
-  }
+  };
+
+  const handleConnectWallet = () => {
+    setShowWalletModal(true);
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -65,52 +127,70 @@ export const LoginScreen = () => {
           </View>
         </View>
 
+        {/* Show existing local account if available */}
+        {!isCheckingAccount && localAccount && (
+          <View style={styles.accountSection}>
+            <LocalAccountCard
+              address={localAccount}
+              onSelect={handleUseLocalAccount}
+              onDelete={handleDeleteLocalAccount}
+              isLoading={isConnecting}
+            />
+          </View>
+        )}
+
         {/* Authentication Buttons */}
         <View style={styles.authSection}>
-          {hasExistingWallet ? (
-            <>
-              <TouchableOpacity
-                style={styles.primaryButton}
-                onPress={handleConnect}
-                disabled={isConnecting}
-              >
-                {isConnecting ? (
-                  <ActivityIndicator color="#FFFFFF" />
-                ) : (
-                  <Text style={styles.primaryButtonText}>
-                    RESTORE ACCOUNT
-                  </Text>
-                )}
-              </TouchableOpacity>
-
-              <Text style={styles.accountInfo}>
-                Anonymous account detected
-              </Text>
-            </>
-          ) : (
+          {/* Only show New Local Account if no account exists */}
+          {!localAccount && (
             <TouchableOpacity
               style={styles.primaryButton}
-              onPress={handleConnect}
+              onPress={handleNewAccount}
               disabled={isConnecting}
             >
               {isConnecting ? (
                 <ActivityIndicator color="#FFFFFF" />
               ) : (
                 <Text style={styles.primaryButtonText}>
-                  CREATE ANONYMOUS ACCOUNT
+                  NEW LOCAL ACCOUNT
                 </Text>
               )}
             </TouchableOpacity>
           )}
+
+          <TouchableOpacity
+            style={localAccount ? styles.primaryButton : styles.secondaryButton}
+            onPress={handleImportAccount}
+            disabled={isConnecting}
+          >
+            <Text style={localAccount ? styles.primaryButtonText : styles.secondaryButtonText}>
+              IMPORT ACCOUNT
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.secondaryButton}
+            onPress={handleConnectWallet}
+            disabled={isConnecting}
+          >
+            <Text style={styles.secondaryButtonText}>
+              CONNECT WALLET
+            </Text>
+          </TouchableOpacity>
         </View>
 
         {/* Footer */}
         <View style={styles.footer}>
           <Text style={styles.footerText}>
-            Anonymous burner wallet • No personal data collected
+            Local account • No personal data collected
           </Text>
         </View>
       </View>
+
+      <WalletConnectModal
+        visible={showWalletModal}
+        onClose={() => setShowWalletModal(false)}
+      />
     </SafeAreaView>
   );
 };
@@ -118,12 +198,6 @@ export const LoginScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
     backgroundColor: '#F9FAFB',
   },
   content: {
@@ -172,9 +246,15 @@ const styles = StyleSheet.create({
     color: '#E53935',
     fontWeight: '600',
   },
+  accountSection: {
+    width: '100%',
+    paddingHorizontal: 20,
+    marginVertical: 20,
+  },
   authSection: {
     width: '100%',
     alignItems: 'center',
+    gap: 12,
   },
   primaryButton: {
     backgroundColor: '#000000',
@@ -193,11 +273,22 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     letterSpacing: 0.5,
   },
-  accountInfo: {
-    marginTop: 12,
-    fontSize: 14,
-    color: '#6B7280',
-    textAlign: 'center',
+  secondaryButton: {
+    backgroundColor: 'transparent',
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    width: '100%',
+    maxWidth: 400,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#D1D5DB',
+  },
+  secondaryButtonText: {
+    color: '#111827',
+    fontSize: 16,
+    fontWeight: '600',
+    letterSpacing: 0.5,
   },
   footer: {
     alignItems: 'center',
