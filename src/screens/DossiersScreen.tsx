@@ -22,6 +22,7 @@ import { useDossier } from '../contexts/DossierContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { EmptyState } from '../components/EmptyState';
 import type { Dossier } from '../types/dossier';
+import { serializeDossier } from '../types/dossier';
 
 export const DossiersScreen = () => {
   const navigation = useNavigation();
@@ -43,6 +44,15 @@ export const DossiersScreen = () => {
     const interval = Number(dossier.checkInInterval);
     const nextCheckInDue = lastCheckIn + interval;
     const remaining = nextCheckInDue - now;
+
+    // Check permanent states first
+    if (dossier.isPermanentlyDisabled) {
+      return { display: 'Disabled', color: '#EF4444', expired: false };
+    }
+
+    if (dossier.isReleased) {
+      return { display: 'Released', color: '#10B981', expired: true };
+    }
 
     if (!dossier.isActive) {
       return { display: 'Paused', color: theme.colors.warning, expired: false };
@@ -86,7 +96,8 @@ export const DossiersScreen = () => {
     const truncatedName = displayName.length > 24
       ? `${displayName.substring(0, 24)}...`
       : displayName;
-    const isPrivate = dossier.recipients && dossier.recipients.length > 0;
+    const isPrivate = dossier.recipients && dossier.recipients.length > 1;
+    const hasGuardians = dossier.guardians && dossier.guardians.length > 0;
 
     return (
       <TouchableOpacity
@@ -95,7 +106,7 @@ export const DossiersScreen = () => {
           backgroundColor: theme.colors.card,
           borderColor: theme.colors.border
         }]}
-        onPress={() => navigation.navigate('DossierDetail' as never, { dossier } as never)}
+        onPress={() => navigation.navigate('DossierDetail' as never, { dossier: serializeDossier(dossier) } as never)}
       >
         {/* Header */}
         <View style={[styles.cardHeader, { borderBottomColor: theme.colors.border }]}>
@@ -109,8 +120,16 @@ export const DossiersScreen = () => {
             <View style={[
               styles.statusDot,
               {
-                backgroundColor: timeInfo.expired ? '#FF6B6B' : dossier.isActive ? '#B8E994' : '#6b7280',
-                shadowColor: timeInfo.expired ? '#FF6B6B' : dossier.isActive ? '#B8E994' : '#6b7280',
+                backgroundColor: dossier.isPermanentlyDisabled ? '#EF4444'
+                  : dossier.isReleased ? '#10B981'
+                  : timeInfo.expired ? '#FF6B6B'
+                  : dossier.isActive ? '#B8E994'
+                  : '#6b7280',
+                shadowColor: dossier.isPermanentlyDisabled ? '#EF4444'
+                  : dossier.isReleased ? '#10B981'
+                  : timeInfo.expired ? '#FF6B6B'
+                  : dossier.isActive ? '#B8E994'
+                  : '#6b7280',
                 shadowOffset: { width: 0, height: 0 },
                 shadowOpacity: 0.2,
                 shadowRadius: 4,
@@ -121,14 +140,18 @@ export const DossiersScreen = () => {
               styles.statusText,
               { color: theme.colors.text }
             ]}>
-              {timeInfo.expired ? 'Released' : dossier.isActive ? 'Active' : 'Inactive'}
+              {dossier.isPermanentlyDisabled ? 'Disabled'
+                : dossier.isReleased ? 'Released'
+                : timeInfo.expired ? 'Released'
+                : dossier.isActive ? 'Active'
+                : 'Inactive'}
             </Text>
           </View>
         </View>
 
         {/* Body */}
         <View style={styles.cardBody}>
-          {/* Private/Public Indicator */}
+          {/* Badges */}
           <View style={styles.visibilityContainer}>
             <View style={[
               styles.visibilityBadge,
@@ -153,6 +176,25 @@ export const DossiersScreen = () => {
                 {isPrivate ? 'Private' : 'Public'}
               </Text>
             </View>
+
+            {hasGuardians && (
+              <View style={[
+                styles.visibilityBadge,
+                styles.guardianBadge,
+                {
+                  backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                  borderColor: '#3B82F6'
+                }
+              ]}>
+                <Icon name="shield" size={14} color="#3B82F6" />
+                <Text style={[
+                  styles.visibilityText,
+                  { color: '#3B82F6' }
+                ]}>
+                  Guardian
+                </Text>
+              </View>
+            )}
           </View>
 
           {/* Time Remaining */}
@@ -177,7 +219,7 @@ export const DossiersScreen = () => {
                 ? styles.viewButtonExpired
                 : { backgroundColor: theme.colors.background, borderColor: theme.colors.border }
             ]}
-            onPress={() => navigation.navigate('DossierDetail' as never, { dossier } as never)}
+            onPress={() => navigation.navigate('DossierDetail' as never, { dossier: serializeDossier(dossier) } as never)}
           >
             <Text style={[
               styles.viewButtonText,
@@ -375,8 +417,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   visibilityContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
+    gap: 8,
+    flexWrap: 'wrap',
   },
   visibilityBadge: {
     flexDirection: 'row',
@@ -386,6 +432,9 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 6,
     borderWidth: 1,
+  },
+  guardianBadge: {
+    // Guardian-specific styling applied inline
   },
   visibilityText: {
     fontSize: 12,

@@ -1313,9 +1313,14 @@ export const CreateDossierScreen = () => {
                 {guardianThreshold} of {validGuardians.length} guardians required
               </Text>
               {validGuardians.map((guardian, index) => (
-                <Text key={index} style={[styles.summaryContact, { color: theme.colors.text }]}>
-                  • {guardian}
-                </Text>
+                <View key={index} style={styles.summaryContactRow}>
+                  <Text style={[styles.summaryContactLabel, { color: theme.colors.textSecondary }]}>
+                    Guardian #{index + 1}
+                  </Text>
+                  <Text style={[styles.summaryContact, { color: theme.colors.text }]}>
+                    {guardian}
+                  </Text>
+                </View>
               ))}
             </>
           )}
@@ -1326,9 +1331,14 @@ export const CreateDossierScreen = () => {
                 Emergency Contacts
               </Text>
               {validContacts.map((contact, index) => (
-                <Text key={index} style={[styles.summaryContact, { color: theme.colors.text }]}>
-                  • {contact}
-                </Text>
+                <View key={index} style={styles.summaryContactRow}>
+                  <Text style={[styles.summaryContactLabel, { color: theme.colors.textSecondary }]}>
+                    Contact #{index + 1}
+                  </Text>
+                  <Text style={[styles.summaryContact, { color: theme.colors.text }]}>
+                    {contact}
+                  </Text>
+                </View>
               ))}
             </>
           )}
@@ -1825,10 +1835,17 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginBottom: 8,
   },
+  summaryContactRow: {
+    marginBottom: 12,
+  },
+  summaryContactLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
   summaryContact: {
     fontSize: 14,
     fontFamily: 'monospace',
-    marginBottom: 4,
   },
   footer: {
     flexDirection: 'row',

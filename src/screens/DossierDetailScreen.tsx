@@ -20,11 +20,13 @@ import { useTheme } from '../contexts/ThemeContext';
 import { useDossier } from '../contexts/DossierContext';
 import { retrieveFromPinata } from '../lib/pinata';
 import { decryptFile } from '../lib/tacoMobile';
-import type { Dossier } from '../types/dossier';
+import type { Dossier, SerializableDossier, SerializableGuardianDossier } from '../types/dossier';
+import { deserializeDossier, deserializeGuardianDossier } from '../types/dossier';
+import { DOSSIER_CONTRACT_ADDRESS } from '../constants/contracts';
 
 type DossierDetailRouteProp = {
   params: {
-    dossier: Dossier;
+    dossier: SerializableDossier | SerializableGuardianDossier;
   };
 };
 
@@ -34,7 +36,15 @@ export const DossierDetailScreen = () => {
   const { theme } = useTheme();
   const { checkIn, updateSchedule, pauseDossier, resumeDossier, releaseNow, permanentlyDisable } = useDossier();
 
-  const [dossier, setDossier] = useState<Dossier>(route.params.dossier);
+  // Deserialize the dossier from navigation params (handles both Dossier and GuardianDossier)
+  const [dossier, setDossier] = useState<Dossier>(() => {
+    const serialized = route.params.dossier;
+    // Check if it's a GuardianDossier by checking for 'owner' property
+    if ('owner' in serialized) {
+      return deserializeGuardianDossier(serialized as SerializableGuardianDossier);
+    }
+    return deserializeDossier(serialized);
+  });
   const [isCheckingIn, setIsCheckingIn] = useState(false);
   const [isDecrypting, setIsDecrypting] = useState(false);
   const [isReleasing, setIsReleasing] = useState(false);
@@ -47,6 +57,7 @@ export const DossierDetailScreen = () => {
   const [dialogMessage, setDialogMessage] = useState('');
   const [newInterval, setNewInterval] = useState('');
   const [customInterval, setCustomInterval] = useState('');
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   const formatAddress = (addr: string) => {
     if (!addr) return '';
@@ -100,7 +111,7 @@ export const DossierDetailScreen = () => {
     const now = Math.floor(Date.now() / 1000);
     const timeSinceLastCheckIn = now - Number(dossier.lastCheckIn || 0);
     if (timeSinceLastCheckIn > Number(dossier.checkInInterval)) {
-      return { text: 'Expired', color: '#F59E0B', bgColor: '#FEF3C7' };
+      return { text: 'Expired', color: '#EF4444', bgColor: '#FEE2E2' };
     }
 
     return { text: 'Active', color: '#10B981', bgColor: '#D1FAE5' };
@@ -329,13 +340,21 @@ export const DossierDetailScreen = () => {
   const canCheckIn = dossier.isActive && !dossier.isReleased && !dossier.isPermanentlyDisabled;
   const canModify = !dossier.isReleased && !dossier.isPermanentlyDisabled;
 
+  // Check if dossier is expired
+  const isExpired = () => {
+    const now = Math.floor(Date.now() / 1000);
+    const timeSinceLastCheckIn = now - Number(dossier.lastCheckIn || 0);
+    return timeSinceLastCheckIn > Number(dossier.checkInInterval);
+  };
+
   // Check if decryption is allowed
+  // Can decrypt when: files exist AND (manually released OR (expired AND guardian approval if guardians exist))
   const hasFiles = (dossier.encryptedFileHashes?.length || 0) > 0;
   const hasGuardians = dossier.guardians && dossier.guardians.length > 0;
   const guardianThresholdMet = hasGuardians
     ? Number(dossier.guardianConfirmationCount || 0) >= Number(dossier.guardianThreshold || 0)
     : true;
-  const canDecrypt = hasFiles && (dossier.isReleased || guardianThresholdMet);
+  const canDecrypt = hasFiles && (dossier.isReleased || (isExpired() && guardianThresholdMet));
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
@@ -374,7 +393,7 @@ export const DossierDetailScreen = () => {
                 color={theme.colors.text}
               />
               <Text style={[styles.visibilityText, { color: theme.colors.text }]}>
-                {dossier.recipients?.length ? 'Private' : 'Public'}
+                {dossier.recipients && dossier.recipients.length > 1 ? 'Private' : 'Public'}
               </Text>
             </View>
           </View>
@@ -419,51 +438,14 @@ export const DossierDetailScreen = () => {
           )}
         </View>
 
-        {/* Encrypted Files */}
-        {dossier.encryptedFileHashes && dossier.encryptedFileHashes.length > 0 && (
+        {/* Recipients - Only show for private dossiers (recipients beyond owner) */}
+        {dossier.recipients && dossier.recipients.length > 1 && (
           <View style={[styles.panel, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
-            <Text style={[styles.panelTitle, { color: theme.colors.text }]}>Encrypted Files</Text>
+            <Text style={[styles.panelTitle, { color: theme.colors.text }]}>Emergency Contacts</Text>
 
-            {dossier.encryptedFileHashes.map((ipfsHash, index) => (
-              <View key={index} style={[styles.fileItem, { borderTopColor: theme.colors.border }]}>
-                <View style={styles.fileHeader}>
-                  <Icon name={index === 0 ? "list" : "file"} size={16} color={theme.colors.primary} />
-                  <Text style={[styles.fileNumber, { color: theme.colors.text }]}>
-                    {index === 0 ? 'Manifest' : `File #${index}`}
-                  </Text>
-                </View>
-                <Text style={[styles.fileHash, { color: theme.colors.textSecondary }]} numberOfLines={1}>
-                  {ipfsHash}
-                </Text>
-                <View style={styles.fileActions}>
-                  <TouchableOpacity
-                    style={[styles.copyButton, { borderColor: theme.colors.border }]}
-                    onPress={() => copyToClipboard(ipfsHash, 'IPFS hash')}
-                  >
-                    <Icon name="copy" size={14} color={theme.colors.text} />
-                    <Text style={[styles.copyButtonText, { color: theme.colors.text }]}>Copy Hash</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.copyButton, { borderColor: theme.colors.border, marginLeft: 8 }]}
-                    onPress={() => copyToClipboard(`https://purple-certain-guan-605.mypinata.cloud/ipfs/${ipfsHash}`, 'IPFS URL')}
-                  >
-                    <Icon name="link" size={14} color={theme.colors.text} />
-                    <Text style={[styles.copyButtonText, { color: theme.colors.text }]}>Copy URL</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            ))}
-          </View>
-        )}
-
-        {/* Recipients */}
-        {dossier.recipients && dossier.recipients.length > 0 && (
-          <View style={[styles.panel, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
-            <Text style={[styles.panelTitle, { color: theme.colors.text }]}>Recipients</Text>
-
-            {dossier.recipients.map((recipient, index) => (
+            {dossier.recipients.slice(1).map((recipient, index) => (
               <View key={index} style={[styles.recipientItem, { borderTopColor: theme.colors.border }]}>
-                <Text style={[styles.recipientNumber, { color: theme.colors.text }]}>Recipient #{index + 1}</Text>
+                <Text style={[styles.recipientNumber, { color: theme.colors.text }]}>Contact #{index + 1}</Text>
                 <Text style={[styles.recipientAddress, { color: theme.colors.textSecondary }]} numberOfLines={1}>
                   {recipient}
                 </Text>
@@ -515,6 +497,102 @@ export const DossierDetailScreen = () => {
             ))}
           </View>
         )}
+
+        {/* Advanced Section */}
+        <View style={[styles.panel, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+          <TouchableOpacity
+            style={styles.advancedHeader}
+            onPress={() => setShowAdvanced(!showAdvanced)}
+          >
+            <View style={styles.advancedHeaderLeft}>
+              <Icon name="code" size={18} color={theme.colors.textSecondary} />
+              <Text style={[styles.panelTitle, { marginBottom: 0, color: theme.colors.text }]}>Advanced</Text>
+            </View>
+            <Icon
+              name={showAdvanced ? 'chevron-up' : 'chevron-down'}
+              size={20}
+              color={theme.colors.textSecondary}
+            />
+          </TouchableOpacity>
+
+          {showAdvanced && (
+            <>
+              {/* Smart Contract Details */}
+              <View style={[styles.advancedSection, { borderTopColor: theme.colors.border }]}>
+                <Text style={[styles.advancedSectionTitle, { color: theme.colors.text }]}>Smart Contract</Text>
+
+                <View style={styles.infoRow}>
+                  <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Contract Address</Text>
+                  <Text style={[styles.contractAddress, { color: theme.colors.text }]} numberOfLines={1}>
+                    {DOSSIER_CONTRACT_ADDRESS}
+                  </Text>
+                  <TouchableOpacity
+                    style={[styles.copyButton, { borderColor: theme.colors.border, marginTop: 8 }]}
+                    onPress={() => copyToClipboard(DOSSIER_CONTRACT_ADDRESS, 'Contract address')}
+                  >
+                    <Icon name="copy" size={14} color={theme.colors.text} />
+                    <Text style={[styles.copyButtonText, { color: theme.colors.text }]}>Copy</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <View style={styles.infoRow}>
+                  <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Network</Text>
+                  <Text style={[styles.value, { color: theme.colors.text }]}>Status Network Sepolia</Text>
+                </View>
+
+                <View style={styles.infoRow}>
+                  <Text style={[styles.label, { color: theme.colors.textSecondary }]}>Contract Version</Text>
+                  <Text style={[styles.value, { color: theme.colors.text }]}>DossierV3 (Guardian Support)</Text>
+                </View>
+
+                <TouchableOpacity
+                  style={[styles.copyButton, { borderColor: theme.colors.border }]}
+                  onPress={() => copyToClipboard(`https://sepolia.explorer.status.im/address/${DOSSIER_CONTRACT_ADDRESS}`, 'Block Explorer URL')}
+                >
+                  <Icon name="external-link" size={14} color={theme.colors.text} />
+                  <Text style={[styles.copyButtonText, { color: theme.colors.text }]}>View on Explorer</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Encrypted Files */}
+              {dossier.encryptedFileHashes && dossier.encryptedFileHashes.length > 0 && (
+                <View style={[styles.advancedSection, { borderTopColor: theme.colors.border }]}>
+                  <Text style={[styles.advancedSectionTitle, { color: theme.colors.text }]}>Encrypted Files (IPFS)</Text>
+
+                  {dossier.encryptedFileHashes.map((ipfsHash, index) => (
+                    <View key={index} style={[styles.fileItem, { borderTopColor: theme.colors.border }]}>
+                      <View style={styles.fileHeader}>
+                        <Icon name={index === 0 ? "list" : "file"} size={16} color={theme.colors.primary} />
+                        <Text style={[styles.fileNumber, { color: theme.colors.text }]}>
+                          {index === 0 ? 'Manifest' : `File #${index}`}
+                        </Text>
+                      </View>
+                      <Text style={[styles.fileHash, { color: theme.colors.textSecondary }]} numberOfLines={1}>
+                        {ipfsHash}
+                      </Text>
+                      <View style={styles.fileActions}>
+                        <TouchableOpacity
+                          style={[styles.copyButton, { borderColor: theme.colors.border }]}
+                          onPress={() => copyToClipboard(ipfsHash, 'IPFS hash')}
+                        >
+                          <Icon name="copy" size={14} color={theme.colors.text} />
+                          <Text style={[styles.copyButtonText, { color: theme.colors.text }]}>Copy Hash</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={[styles.copyButton, { borderColor: theme.colors.border, marginLeft: 8 }]}
+                          onPress={() => copyToClipboard(`https://purple-certain-guan-605.mypinata.cloud/ipfs/${ipfsHash}`, 'IPFS URL')}
+                        >
+                          <Icon name="link" size={14} color={theme.colors.text} />
+                          <Text style={[styles.copyButtonText, { color: theme.colors.text }]}>Copy URL</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </>
+          )}
+        </View>
 
         {/* Actions */}
         <View style={[styles.panel, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
@@ -780,6 +858,7 @@ export const DossierDetailScreen = () => {
       >
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, styles.alertDialogContent, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
+            <Icon name="check-circle" size={48} color="#10B981" style={styles.modalIcon} />
             <Text style={[styles.alertDialogTitle, { color: theme.colors.text }]}>Success</Text>
             <Text style={[styles.alertDialogMessage, { color: theme.colors.textSecondary }]}>
               {dialogMessage}
@@ -912,6 +991,34 @@ const styles = StyleSheet.create({
   },
   timingItem: {
     marginBottom: 12,
+  },
+  advancedHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 4,
+  },
+  advancedHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  advancedSection: {
+    paddingTop: 16,
+    marginTop: 16,
+    borderTopWidth: 1,
+  },
+  advancedSectionTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    marginBottom: 12,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  contractAddress: {
+    fontSize: 12,
+    fontFamily: 'monospace',
+    marginTop: 4,
   },
   fileItem: {
     paddingTop: 12,
@@ -1095,6 +1202,7 @@ const styles = StyleSheet.create({
   loaderGif: {
     width: 200,
     height: 200,
+    alignSelf: 'center',
   },
   // Guardian styles
   panelHeaderRow: {

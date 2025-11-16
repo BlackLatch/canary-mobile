@@ -23,6 +23,7 @@ import { useDossier } from '../contexts/DossierContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { EmptyState } from '../components/EmptyState';
 import type { GuardianDossier } from '../types/dossier';
+import { serializeGuardianDossier } from '../types/dossier';
 
 export const GuardScreen = () => {
   const navigation = useNavigation();
@@ -95,7 +96,7 @@ export const GuardScreen = () => {
   };
 
   const handleViewDossier = (dossier: GuardianDossier) => {
-    navigation.navigate('DossierDetail' as never, { dossier } as never);
+    navigation.navigate('DossierDetail' as never, { dossier: serializeGuardianDossier(dossier) } as never);
   };
 
   const handleConfirmPress = (dossier: GuardianDossier) => {

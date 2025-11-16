@@ -331,7 +331,8 @@ class ContractService {
         guardianThreshold,
         {
           gasLimit,
-          gasPrice: 0, // Fully gasless - no gas price
+          maxFeePerGas: ethers.BigNumber.from(0), // EIP-1559 gasless
+          maxPriorityFeePerGas: ethers.BigNumber.from(0), // EIP-1559 gasless
         }
       );
 

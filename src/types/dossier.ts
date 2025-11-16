@@ -97,20 +97,25 @@ export interface FileInfo {
   type: string;
 }
 
-export interface ManifestFileEntry {
-  index: number; // Position in the dossier's file list
-  originalName: string; // Original filename with extension
-  mimeType: string; // MIME type (e.g., "image/jpeg", "application/pdf")
-  sizeBytes: number; // File size in bytes
-  encryptedFileHash: string; // IPFS CID of the encrypted file
+// Manifest file entry - matches web app format exactly for interoperability
+export interface DossierManifestFile {
+  name: string; // Original filename with extension
+  type: string; // MIME type (e.g., "image/jpeg", "application/pdf")
+  size: number; // File size in bytes
+  encryptedHash: string; // IPFS CID of the encrypted file
   storageUrl: string; // Full IPFS gateway URL to access the encrypted file
 }
 
+// Dossier manifest - matches web app format exactly for cross-platform compatibility
 export interface DossierManifest {
-  version: string; // Manifest format version (e.g., "1.0.0")
+  version: string; // Manifest format version - must be '1.0' for web app compatibility
   dossierId: string; // ID of the dossier this manifest belongs to
-  created: string; // ISO timestamp of manifest creation
-  files: ManifestFileEntry[]; // Array of file metadata entries
+  name: string; // Dossier name
+  createdAt: number; // Unix timestamp in seconds (NOT ISO string)
+  checkInInterval: number; // Check-in interval in seconds
+  releaseMode: 'public' | 'private'; // Release mode - determines encryption strategy
+  recipients: string[]; // Array of recipient addresses (for private mode)
+  files: DossierManifestFile[]; // Array of file metadata entries
 }
 
 export type WalletType = 'burner' | 'walletconnect' | 'embedded';
@@ -120,4 +125,71 @@ export interface WalletState {
   address: Address | null;
   isConnected: boolean;
   chainId: number | null;
+}
+
+// Serializable versions for React Navigation (bigint → string)
+export interface SerializableDossier {
+  id: string;
+  name: string;
+  description?: string;
+  isActive: boolean;
+  isPermanentlyDisabled?: boolean;
+  isReleased?: boolean;
+  checkInInterval: string;
+  lastCheckIn: string;
+  encryptedFileHashes: string[];
+  recipients: Address[];
+  guardians: Address[];
+  guardianThreshold: string;
+  guardianConfirmationCount: string;
+}
+
+export interface SerializableGuardianDossier extends SerializableDossier {
+  owner: Address;
+  isDecryptable?: boolean;
+  isThresholdMet?: boolean;
+  hasCurrentUserConfirmed?: boolean;
+}
+
+// Utility functions for navigation serialization
+export function serializeDossier(dossier: Dossier): SerializableDossier {
+  return {
+    ...dossier,
+    id: dossier.id.toString(),
+    checkInInterval: dossier.checkInInterval.toString(),
+    lastCheckIn: dossier.lastCheckIn.toString(),
+    guardianThreshold: dossier.guardianThreshold.toString(),
+    guardianConfirmationCount: dossier.guardianConfirmationCount.toString(),
+  };
+}
+
+export function deserializeDossier(serialized: SerializableDossier): Dossier {
+  return {
+    ...serialized,
+    id: BigInt(serialized.id),
+    checkInInterval: BigInt(serialized.checkInInterval),
+    lastCheckIn: BigInt(serialized.lastCheckIn),
+    guardianThreshold: BigInt(serialized.guardianThreshold),
+    guardianConfirmationCount: BigInt(serialized.guardianConfirmationCount),
+  };
+}
+
+export function serializeGuardianDossier(dossier: GuardianDossier): SerializableGuardianDossier {
+  return {
+    ...serializeDossier(dossier),
+    owner: dossier.owner,
+    isDecryptable: dossier.isDecryptable,
+    isThresholdMet: dossier.isThresholdMet,
+    hasCurrentUserConfirmed: dossier.hasCurrentUserConfirmed,
+  };
+}
+
+export function deserializeGuardianDossier(serialized: SerializableGuardianDossier): GuardianDossier {
+  return {
+    ...deserializeDossier(serialized),
+    owner: serialized.owner,
+    isDecryptable: serialized.isDecryptable,
+    isThresholdMet: serialized.isThresholdMet,
+    hasCurrentUserConfirmed: serialized.hasCurrentUserConfirmed,
+  };
 }

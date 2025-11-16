@@ -13,7 +13,7 @@ import RNFS from 'react-native-fs';
 import { contractService } from '../lib/contract';
 import { encryptFileWithDossier, commitEncryptedFileToPinata } from '../lib/tacoMobile';
 import type { CommitResult } from '../lib/tacoMobile';
-import type { Dossier, Address, DeadmanCondition, FileInfo, TraceJson, DossierManifest, ManifestFileEntry, GuardianDossier, DossierReference } from '../types/dossier';
+import type { Dossier, Address, DeadmanCondition, FileInfo, TraceJson, DossierManifest, DossierManifestFile, GuardianDossier, DossierReference } from '../types/dossier';
 import { useWallet } from './WalletContext';
 import { PINATA_CONFIG } from '../constants/taco';
 
@@ -163,6 +163,12 @@ export const DossierProvider: React.FC<DossierProviderProps> = ({ children }) =>
       const encryptedFiles: CommitResult[] = [];
       const traceJsons: TraceJson[] = [];
 
+      // Determine release mode based on recipients BEFORE encryption
+      // Public release: no recipients specified (will default to user's address on-chain)
+      // Private release: specific recipients provided
+      const releaseMode: 'public' | 'private' = recipients.length === 0 ? 'public' : 'private';
+      console.log(`🔓 Release Mode: ${releaseMode}`);
+
       for (const file of files) {
         console.log(`🔐 Encrypting file: ${file.name}`);
 
@@ -177,14 +183,18 @@ export const DossierProvider: React.FC<DossierProviderProps> = ({ children }) =>
           userAddress: address,
         };
 
-        // Encrypt file with the correct dossier ID
+        // Encrypt file with the correct dossier ID and release mode
+        // Private release: uses CompoundCondition with recipient check
+        // Public release: uses simple ContractCondition
         const encryptionResult = await encryptFileWithDossier(
           fileData,
           file.name,
           condition,
           description,
           nextDossierId,
-          address
+          address,
+          releaseMode,
+          recipients
         );
 
         // Upload to Pinata
@@ -195,24 +205,29 @@ export const DossierProvider: React.FC<DossierProviderProps> = ({ children }) =>
       }
 
       // Step 2.5: Build and encrypt manifest with file metadata
+      // Manifest format matches web app for cross-platform compatibility
       console.log('📋 Building manifest with file metadata...');
-      const manifestEntries: ManifestFileEntry[] = files.map((file, index) => {
+
+      const manifestFiles: DossierManifestFile[] = files.map((file, index) => {
         const cid = encryptedFiles[index].pinataCid!;
         return {
-          index,
-          originalName: file.name,
-          mimeType: file.type,
-          sizeBytes: file.size,
-          encryptedFileHash: cid,
+          name: file.name,
+          type: file.type || 'application/octet-stream',
+          size: file.size,
+          encryptedHash: cid,
           storageUrl: `${PINATA_CONFIG.gateway}/ipfs/${cid}`,
         };
       });
 
       const manifest: DossierManifest = {
-        version: '1.0.0',
+        version: '1.0', // Must be '1.0' for web app compatibility
         dossierId: nextDossierId.toString(),
-        created: new Date().toISOString(),
-        files: manifestEntries,
+        name: name, // Dossier name
+        createdAt: Math.floor(Date.now() / 1000), // Unix timestamp in seconds
+        checkInInterval: Number(checkInInterval), // Convert bigint to number (seconds)
+        releaseMode: releaseMode,
+        recipients: recipients, // Array of recipient addresses
+        files: manifestFiles,
       };
 
       // Encrypt manifest as JSON file
@@ -227,13 +242,16 @@ export const DossierProvider: React.FC<DossierProviderProps> = ({ children }) =>
         userAddress: address,
       };
 
+      // Encrypt manifest with the same release mode as the files
       const manifestEncryptionResult = await encryptFileWithDossier(
         manifestBytes,
         'manifest.json',
         manifestCondition,
         `Manifest for ${name}`,
         nextDossierId,
-        address
+        address,
+        releaseMode,
+        recipients
       );
 
       const { commitResult: manifestCommit } = await commitEncryptedFileToPinata(manifestEncryptionResult);
@@ -246,9 +264,11 @@ export const DossierProvider: React.FC<DossierProviderProps> = ({ children }) =>
       ];
 
       // Step 4: Create dossier on-chain
-      // If no recipients specified, add user's own address (public release)
-      const finalRecipients = recipients.length === 0 ? [address] : recipients;
-      console.log('📋 Final recipients:', finalRecipients);
+      // IMPORTANT: Contract requires at least one recipient (the owner)
+      // For public releases: include only user's own address
+      // For private releases: include user's address + specified recipients
+      const finalRecipients = [address, ...recipients]; // Always include user, then add additional recipients
+      console.log(`📋 Final recipients (${releaseMode}):`, recipients.length === 0 ? `Public - Owner only [${address}]` : `Private - Owner + ${recipients.length} contacts`);
 
       const result = await contractService.createDossier(
         name,
