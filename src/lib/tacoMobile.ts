@@ -172,11 +172,11 @@ class TacoMobileService {
   }
 
   /**
-   * Create ContractCondition for DossierV2 contract
+   * Create ContractCondition for public/guardian dossier releases
    * Uses TACo's ContractCondition format with custom function ABI
    */
-  private createDossierConditionJson(userAddress: string, dossierId: bigint): string {
-    console.log(`🔒 Creating Contract Dossier condition: user=${userAddress}, dossier=${dossierId.toString()}`);
+  private createPublicDossierConditionJson(userAddress: string, dossierId: bigint): string {
+    console.log(`🔒 Creating PUBLIC Contract condition: user=${userAddress}, dossier=${dossierId.toString()}`);
     console.log(`📍 Contract: ${DOSSIER_V2_ADDRESS} on Status Network Sepolia`);
 
     // Create ContractCondition JSON matching TACo SDK format
@@ -199,8 +199,7 @@ class TacoMobileService {
           name: 'shouldDossierStayEncrypted',
           outputs: [{ internalType: 'bool', name: '', type: 'bool' }],
           stateMutability: 'view',
-          type: 'function',
-          constant: true
+          type: 'function'
         },
         chain: STATUS_SEPOLIA.id,
         returnValueTest: {
@@ -212,12 +211,82 @@ class TacoMobileService {
     };
 
     const conditionString = JSON.stringify(conditionJson);
-    console.log('📋 Condition JSON:', conditionString);
+    console.log('📋 Public Condition JSON:', conditionString);
+    return conditionString;
+  }
+
+  /**
+   * Create CompoundCondition for private recipient dossier releases
+   * Combines contract condition AND recipient context variable check
+   * Requires SIWE authentication to prove ownership of :userAddress
+   */
+  private createPrivateDossierConditionJson(
+    userAddress: string,
+    dossierId: bigint,
+    recipients: string[]
+  ): string {
+    console.log(`🔒 Creating PRIVATE Compound condition: user=${userAddress}, dossier=${dossierId.toString()}`);
+    console.log(`👥 Recipients: ${recipients.join(', ')}`);
+    console.log(`📍 Contract: ${DOSSIER_V2_ADDRESS} on Status Network Sepolia`);
+
+    // Condition 1: Contract check (same as public)
+    const contractCondition = {
+      conditionType: 'contract',
+      contractAddress: DOSSIER_V2_ADDRESS,
+      method: 'shouldDossierStayEncrypted',
+      parameters: [
+        userAddress,
+        Number(dossierId)
+      ],
+      functionAbi: {
+        inputs: [
+          { internalType: 'address', name: '_user', type: 'address' },
+          { internalType: 'uint256', name: '_dossierId', type: 'uint256' }
+        ],
+        name: 'shouldDossierStayEncrypted',
+        outputs: [{ internalType: 'bool', name: '', type: 'bool' }],
+        stateMutability: 'view',
+        type: 'function'
+      },
+      chain: STATUS_SEPOLIA.id,
+      returnValueTest: {
+        comparator: '==',
+        value: false,
+      }
+    };
+
+    // Condition 2: Recipient check using :userAddress context variable
+    // This requires SIWE authentication to prove the decryptor owns the address
+    const recipientCondition = {
+      conditionType: 'context',
+      contextVariable: ':userAddress',
+      returnValueTest: {
+        comparator: 'in',
+        value: recipients // Array of allowed recipient addresses
+      }
+    };
+
+    // Combine with AND operator - both conditions must be true
+    const compoundCondition = {
+      version: '1.0.0',
+      condition: {
+        conditionType: 'compound',
+        operator: 'and',
+        operands: [
+          contractCondition,
+          recipientCondition
+        ]
+      }
+    };
+
+    const conditionString = JSON.stringify(compoundCondition);
+    console.log('📋 Private Compound Condition JSON:', conditionString);
     return conditionString;
   }
 
   /**
    * Encrypt file with Dossier contract condition
+   * Supports both public and private release modes
    */
   async encryptFile(
     fileData: Uint8Array,
@@ -225,7 +294,9 @@ class TacoMobileService {
     condition: DeadmanCondition,
     description: string,
     dossierId: bigint,
-    userAddress: string
+    userAddress: string,
+    releaseMode: 'public' | 'private' = 'public',
+    recipients: string[] = []
   ): Promise<EncryptionResult> {
     await this.initialize();
 
@@ -233,14 +304,25 @@ class TacoMobileService {
     console.log(`📁 File: ${fileName} (${fileData.length} bytes)`);
     console.log(`🆔 Dossier ID: ${dossierId.toString()}`);
     console.log(`👤 User: ${userAddress}`);
+    console.log(`🔓 Release Mode: ${releaseMode}`);
+    if (releaseMode === 'private') {
+      console.log(`👥 Recipients: ${recipients.join(', ')}`);
+    }
 
     // Fetch DKG public key for the ritual
     console.log(`🔑 Fetching DKG public key for ritual ${RITUAL_ID}...`);
     const dkgPublicKey = await this.fetchDkgPublicKey(RITUAL_ID);
     console.log(`✅ DKG public key fetched (${dkgPublicKey.length} bytes)`);
 
-    // Create condition JSON
-    const conditionsJson = this.createDossierConditionJson(userAddress, dossierId);
+    // Create condition JSON based on release mode
+    let conditionsJson: string;
+    if (releaseMode === 'private' && recipients.length > 0) {
+      // Private release: use CompoundCondition with recipient check
+      conditionsJson = this.createPrivateDossierConditionJson(userAddress, dossierId, recipients);
+    } else {
+      // Public or guardian release: use simple ContractCondition
+      conditionsJson = this.createPublicDossierConditionJson(userAddress, dossierId);
+    }
     console.log('📋 Condition JSON:', conditionsJson);
 
     // Encrypt using taco-mobile
@@ -522,6 +604,7 @@ export const tacoMobileService = new TacoMobileService();
 
 /**
  * High-level encryption function
+ * Supports both public and private release modes with recipient-based encryption
  */
 export async function encryptFileWithDossier(
   fileData: Uint8Array,
@@ -529,7 +612,9 @@ export async function encryptFileWithDossier(
   condition: DeadmanCondition,
   description: string,
   dossierId: bigint,
-  userAddress: string
+  userAddress: string,
+  releaseMode: 'public' | 'private' = 'public',
+  recipients: string[] = []
 ): Promise<EncryptionResult> {
   return await tacoMobileService.encryptFile(
     fileData,
@@ -537,7 +622,9 @@ export async function encryptFileWithDossier(
     condition,
     description,
     dossierId,
-    userAddress
+    userAddress,
+    releaseMode,
+    recipients
   );
 }
 
