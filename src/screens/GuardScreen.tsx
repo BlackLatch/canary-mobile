@@ -303,7 +303,7 @@ export const GuardScreen = () => {
           </Text>
         </View>
 
-        {guardianDossiers.length === 0 ? (
+        {!guardianDossiers || guardianDossiers.length === 0 ? (
           renderEmptyState()
         ) : (
           <>
