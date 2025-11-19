@@ -21,18 +21,13 @@ import { ErrorDialog } from '../components/ErrorDialog';
 type ImportMode = 'seed' | 'private';
 
 export const ImportAccountScreen = () => {
-  const navigation = useNavigation();
-  const { importWallet, restoreFromMnemonic } = useWallet();
+  const navigation = useNavigation<any>();
 
   const [mode, setMode] = useState<ImportMode>('seed');
   const [seedPhrase, setSeedPhrase] = useState('');
   const [privateKey, setPrivateKey] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [showPassword, setShowPassword] = useState(false);
 
   const validateSeedPhrase = (phrase: string): boolean => {
     try {
@@ -57,13 +52,6 @@ export const ImportAccountScreen = () => {
 
   const handleImport = async () => {
     setError(null);
-
-    // Validate password match if provided
-    if (password && password !== confirmPassword) {
-      setError('Passwords do not match');
-      return;
-    }
-
     setIsLoading(true);
 
     try {
@@ -82,8 +70,14 @@ export const ImportAccountScreen = () => {
           return;
         }
 
-        await restoreFromMnemonic(trimmedPhrase, password || undefined);
-        navigation.goBack();
+        // Convert seed phrase to private key
+        const wallet = ethers.Wallet.fromMnemonic(trimmedPhrase);
+
+        // Navigate to PIN creation screen with private key
+        navigation.navigate('CreatePIN', {
+          mode: 'import',
+          privateKey: wallet.privateKey
+        });
       } else {
         let cleanKey = privateKey.trim();
 
@@ -93,22 +87,26 @@ export const ImportAccountScreen = () => {
           return;
         }
 
-        if (cleanKey.startsWith('0x') || cleanKey.startsWith('0X')) {
-          cleanKey = cleanKey.substring(2);
+        // Add 0x prefix if missing
+        if (!cleanKey.startsWith('0x')) {
+          cleanKey = '0x' + cleanKey;
         }
 
-        if (!validatePrivateKey(privateKey)) {
+        if (!validatePrivateKey(cleanKey.substring(2))) {
           setError('Invalid private key. It should be 64 hexadecimal characters.');
           setIsLoading(false);
           return;
         }
 
-        await importWallet(cleanKey, password || undefined);
-        navigation.goBack();
+        // Navigate to PIN creation screen with private key
+        navigation.navigate('CreatePIN', {
+          mode: 'import',
+          privateKey: cleanKey
+        });
       }
     } catch (error: any) {
-      console.error('Import failed:', error);
-      setError(error.message || 'Failed to import account');
+      console.error('Import validation failed:', error);
+      setError(error.message || 'Failed to validate account');
     } finally {
       setIsLoading(false);
     }
@@ -232,18 +230,8 @@ export const ImportAccountScreen = () => {
                     onChangeText={setPrivateKey}
                     autoCapitalize="none"
                     autoCorrect={false}
-                    secureTextEntry={!isPasswordVisible}
+                    secureTextEntry={false}
                   />
-                  <TouchableOpacity
-                    style={styles.visibilityToggle}
-                    onPress={() => setIsPasswordVisible(!isPasswordVisible)}
-                  >
-                    <Icon
-                      name={isPasswordVisible ? 'eye-off' : 'eye'}
-                      size={20}
-                      color="#6B7280"
-                    />
-                  </TouchableOpacity>
                 </View>
 
                 <View style={styles.warningBox}>
@@ -255,58 +243,11 @@ export const ImportAccountScreen = () => {
               </>
             )}
 
-            {/* Password Section */}
-            <View style={styles.passwordSection}>
-              <Text style={styles.sectionTitle}>Password Protection (Optional)</Text>
-              <Text style={styles.sectionHelperText}>
-                Add a password to encrypt your wallet on this device
+            <View style={styles.pinInfoBox}>
+              <Icon name="lock" size={20} color="#3B82F6" />
+              <Text style={styles.infoText}>
+                After import, you'll set up a 6-digit PIN to secure your wallet on this device.
               </Text>
-
-              <View style={styles.inputContainer}>
-                <Text style={styles.label}>Password</Text>
-                <View style={styles.passwordInputWrapper}>
-                  <TextInput
-                    style={styles.passwordInput}
-                    placeholder="Enter password (optional)"
-                    placeholderTextColor="#9CA3AF"
-                    value={password}
-                    onChangeText={setPassword}
-                    secureTextEntry={!showPassword}
-                    autoCapitalize="none"
-                  />
-                  <TouchableOpacity
-                    style={styles.passwordToggle}
-                    onPress={() => setShowPassword(!showPassword)}
-                  >
-                    <Icon
-                      name={showPassword ? 'eye-off' : 'eye'}
-                      size={20}
-                      color="#6B7280"
-                    />
-                  </TouchableOpacity>
-                </View>
-              </View>
-
-              {password && (
-                <View style={styles.inputContainer}>
-                  <Text style={styles.label}>Confirm Password</Text>
-                  <TextInput
-                    style={[
-                      styles.input,
-                      confirmPassword && password !== confirmPassword && styles.inputError,
-                    ]}
-                    placeholder="Confirm password"
-                    placeholderTextColor="#9CA3AF"
-                    value={confirmPassword}
-                    onChangeText={setConfirmPassword}
-                    secureTextEntry={!showPassword}
-                    autoCapitalize="none"
-                  />
-                  {confirmPassword && password !== confirmPassword && (
-                    <Text style={styles.errorText}>Passwords do not match</Text>
-                  )}
-                </View>
-              )}
             </View>
 
             <TouchableOpacity
@@ -463,7 +404,11 @@ const styles = StyleSheet.create({
     color: '#991B1B',
     marginLeft: 8,
   },
-  passwordSection: {
+  pinInfoBox: {
+    flexDirection: 'row',
+    backgroundColor: '#EFF6FF',
+    borderRadius: 8,
+    padding: 12,
     marginBottom: 24,
   },
   sectionTitle: {

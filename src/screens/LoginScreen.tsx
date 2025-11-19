@@ -12,10 +12,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useWallet } from '../contexts/WalletContext';
 import { WalletConnectModal } from '../components/WalletConnectModal';
 import { LocalAccountCard } from '../components/LocalAccountCard';
-import { burnerWalletService } from '../lib/burnerWallet';
+import { pinWalletService } from '../lib/pinWallet';
 
 export const LoginScreen = ({ navigation }: any) => {
-  const { connectBurnerWallet, isConnecting } = useWallet();
+  const { isConnecting } = useWallet();
   const [showWalletModal, setShowWalletModal] = useState(false);
   const [localAccount, setLocalAccount] = useState<string | null>(null);
   const [isCheckingAccount, setIsCheckingAccount] = useState(true);
@@ -26,58 +26,40 @@ export const LoginScreen = ({ navigation }: any) => {
 
   const checkForLocalAccount = async () => {
     try {
-      const wallet = await burnerWalletService.loadWallet();
-      if (wallet) {
-        setLocalAccount(wallet.address);
+      // Check for PIN-protected wallet
+      const hasWallet = await pinWalletService.hasWallet();
+      if (hasWallet) {
+        const address = await pinWalletService.getWalletAddress();
+        if (address) {
+          setLocalAccount(address);
+        }
       }
     } catch (error) {
-      // Wallet might be encrypted or doesn't exist
       console.log('No accessible local account found');
     } finally {
       setIsCheckingAccount(false);
     }
   };
 
-  const handleNewAccount = async () => {
-    try {
-      await connectBurnerWallet();
-    } catch (error) {
-      console.error('Failed to create new account:', error);
-    }
+  const handleNewAccount = () => {
+    // Navigate to PIN creation screen for new account
+    navigation.navigate('CreatePIN', { mode: 'create' });
   };
 
   const handleImportAccount = () => {
     navigation.navigate('ImportAccount');
   };
 
-  const handleUseLocalAccount = async () => {
+  const handleUseLocalAccount = () => {
     if (!localAccount) return;
-
-    try {
-      // Try to connect with the existing local account
-      await connectBurnerWallet();
-    } catch (error: any) {
-      // If it fails, it might be encrypted - prompt for password
-      if (error.message?.includes('decrypt') || error.message?.includes('password')) {
-        // TODO: Add password prompt dialog
-        Alert.alert(
-          'Password Required',
-          'This account is password protected. Please use Import Account to restore it with your password.',
-          [
-            { text: 'Import Account', onPress: handleImportAccount },
-            { text: 'Cancel', style: 'cancel' }
-          ]
-        );
-      } else {
-        console.error('Failed to use local account:', error);
-      }
-    }
+    // The wallet exists but is locked - AuthenticatedApp will show PIN entry screen
+    // Just return to trigger re-render
   };
 
   const handleDeleteLocalAccount = () => {
     Alert.alert(
       'Delete Local Account',
-      'Are you sure you want to delete your local account? This action cannot be undone.',
+      'Are you sure you want to delete your local account? This action cannot be undone. You will need to create a new account or import an existing one.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -85,7 +67,7 @@ export const LoginScreen = ({ navigation }: any) => {
           style: 'destructive',
           onPress: async () => {
             try {
-              await burnerWalletService.deleteWallet();
+              await pinWalletService.resetWallet();
               setLocalAccount(null);
               Alert.alert('Success', 'Local account deleted successfully');
             } catch (error) {

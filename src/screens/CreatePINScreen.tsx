@@ -4,7 +4,7 @@
  * Screen for setting up a new PIN when creating or importing a wallet
  */
 
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
 import {
   View,
   SafeAreaView,
@@ -19,6 +19,7 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { RouteProp } from '@react-navigation/native';
 import { PINInput } from '../components/PINInput';
 import { useTheme } from '../hooks/useTheme';
+import { WalletContext } from '../contexts/WalletContext';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 // Navigation types
@@ -41,7 +42,8 @@ interface CreatePINScreenProps {
 
 export const CreatePINScreen: React.FC<CreatePINScreenProps> = ({ navigation, route }) => {
   const theme = useTheme();
-  const { mode, privateKey, mnemonic } = route.params;
+  const { createPinProtectedWallet, importWalletWithPin } = useContext(WalletContext);
+  const { mode, privateKey, mnemonic } = route.params || { mode: 'create' };
 
   const [step, setStep] = useState<'create' | 'confirm'>('create');
   const [firstPin, setFirstPin] = useState('');
@@ -88,15 +90,23 @@ export const CreatePINScreen: React.FC<CreatePINScreenProps> = ({ navigation, ro
     setError(undefined);
 
     try {
-      // This will be handled by WalletContext
-      // For now, just navigate to indicate success
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'Main' }],
-      });
-    } catch (err) {
+      if (mode === 'create') {
+        // Create new wallet with PIN
+        await createPinProtectedWallet(pin);
+      } else if (mode === 'import' && privateKey) {
+        // Import existing wallet with PIN
+        await importWalletWithPin(privateKey, pin);
+      } else if (mode === 'import' && mnemonic) {
+        // Convert mnemonic to private key first (if needed)
+        // For now, assuming privateKey is provided
+        throw new Error('Mnemonic import not yet implemented');
+      }
+
+      // Success - wallet is created and unlocked
+      // Navigation will be handled by AuthenticatedApp
+    } catch (err: any) {
       console.error('PIN creation error:', err);
-      setError('Failed to create PIN. Please try again.');
+      setError(err.message || 'Failed to create PIN. Please try again.');
       setLoading(false);
     }
   };
