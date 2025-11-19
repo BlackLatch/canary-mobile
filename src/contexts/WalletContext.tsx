@@ -1,16 +1,17 @@
 /**
- * WalletContext - Unified wallet management
+ * WalletContext - Unified wallet management with PIN protection
  *
  * Provides a single interface for managing multiple wallet types:
- * - Burner Wallet (anonymous, client-side generated)
+ * - Local Wallet (PIN-protected, locally stored)
  * - WalletConnect v2 (mobile wallet connection) - TODO
  * - Embedded Wallet (Magic/Privy) - TODO
  */
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useRef } from 'react';
 import { ethers } from 'ethers';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { burnerWalletService } from '../lib/burnerWallet';
+import { pinWalletService } from '../lib/pinWallet';
+import { sessionManager, SessionEventListener } from '../lib/sessionManager';
 import { contractService } from '../lib/contract';
 import type { WalletType, Address } from '../types/dossier';
 
@@ -23,8 +24,16 @@ interface WalletContextState {
   isConnected: boolean;
   isConnecting: boolean;
   isLoading: boolean;
+  isLocked: boolean;
 
-  // Wallet methods
+  // PIN-protected wallet methods
+  createPinProtectedWallet: (pin: string) => Promise<void>;
+  importWalletWithPin: (privateKey: string, pin: string) => Promise<void>;
+  unlockWithPin: (pin: string) => Promise<boolean>;
+  lockWallet: () => void;
+  changePin: (currentPin: string, newPin: string) => Promise<void>;
+
+  // Legacy methods (will be updated to use PIN)
   connectBurnerWallet: (password?: string) => Promise<void>;
   connectWalletConnect: () => Promise<void>; // TODO
   connectEmbeddedWallet: () => Promise<void>; // TODO
@@ -52,13 +61,34 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLocked, setIsLocked] = useState(false);
   const [balance, setBalance] = useState<ethers.BigNumber | null>(null);
+
+  // In-memory wallet instance (cleared when locked)
+  const walletRef = useRef<ethers.Wallet | null>(null);
+  const sessionListenerRef = useRef<(() => void) | null>(null);
 
   /**
    * Initialize wallet on mount
    */
   useEffect(() => {
     initializeWallet();
+
+    // Setup session manager
+    sessionManager.start();
+    const listener: SessionEventListener = (event) => {
+      if (event.type === 'locked') {
+        lockWallet();
+      }
+    };
+    sessionListenerRef.current = sessionManager.addEventListener(listener);
+
+    // Cleanup
+    return () => {
+      sessionListenerRef.current?.();
+      sessionManager.stop();
+      clearInMemoryWallet();
+    };
   }, []);
 
   /**
@@ -69,23 +99,26 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
       console.log('🔐 Initializing wallet...');
       setIsLoading(true);
 
-      // Check for stored wallet type preference
-      const storedType = await AsyncStorage.getItem(WALLET_TYPE_KEY);
-
-      if (storedType === 'burner') {
-        // Try to load burner wallet
-        const wallet = await burnerWalletService.loadWallet();
-        if (wallet) {
-          setWalletType('burner');
-          setAddress(wallet.address as Address);
+      // Check if PIN-protected wallet exists
+      const hasWallet = await pinWalletService.hasWallet();
+      if (hasWallet) {
+        const walletAddress = await pinWalletService.getWalletAddress();
+        if (walletAddress) {
+          setWalletType('burner'); // Using 'burner' for backward compatibility
+          setAddress(walletAddress as Address);
           setIsConnected(true);
-          console.log('✅ Burner wallet loaded:', wallet.address);
-
-          // Load balance
-          await refreshBalanceInternal(wallet);
+          setIsLocked(true); // Start locked, require PIN to unlock
+          console.log('✅ PIN-protected wallet found:', walletAddress);
+          return;
         }
       }
-      // TODO: Handle walletconnect and embedded wallet types
+
+      // Legacy: Check for old burner wallet that needs migration
+      const storedType = await AsyncStorage.getItem(WALLET_TYPE_KEY);
+      if (storedType === 'burner') {
+        // Will be handled by migration service
+        console.log('⚠️ Legacy burner wallet detected - migration needed');
+      }
     } catch (error) {
       console.error('❌ Failed to initialize wallet:', error);
     } finally {
@@ -94,32 +127,150 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
   };
 
   /**
-   * Connect burner wallet
+   * Clear in-memory wallet
    */
-  const connectBurnerWallet = async (password?: string) => {
+  const clearInMemoryWallet = () => {
+    if (walletRef.current) {
+      // Clear sensitive data from memory
+      walletRef.current = null;
+    }
+  };
+
+  /**
+   * Create PIN-protected wallet
+   */
+  const createPinProtectedWallet = async (pin: string) => {
     try {
       setIsConnecting(true);
-      console.log('🔥 Connecting burner wallet...');
+      console.log('🔐 Creating PIN-protected wallet...');
 
-      const wallet = await burnerWalletService.getOrCreateWallet(password);
+      const walletAddress = await pinWalletService.createPinProtectedWallet(pin);
 
       // Store wallet type preference
       await AsyncStorage.setItem(WALLET_TYPE_KEY, 'burner');
 
-      setWalletType('burner');
-      setAddress(wallet.address as Address);
-      setIsConnected(true);
+      // Unlock the wallet immediately after creation
+      const wallet = await pinWalletService.unlockWithPin(pin);
+      walletRef.current = wallet;
 
-      console.log('✅ Burner wallet connected:', wallet.address);
+      setWalletType('burner');
+      setAddress(walletAddress as Address);
+      setIsConnected(true);
+      setIsLocked(false);
+
+      console.log('✅ PIN-protected wallet created:', walletAddress);
+
+      // Start session manager
+      sessionManager.start();
 
       // Load balance
       await refreshBalanceInternal(wallet);
     } catch (error) {
-      console.error('❌ Failed to connect burner wallet:', error);
+      console.error('❌ Failed to create PIN-protected wallet:', error);
       throw error;
     } finally {
       setIsConnecting(false);
     }
+  };
+
+  /**
+   * Import wallet with PIN protection
+   */
+  const importWalletWithPin = async (privateKey: string, pin: string) => {
+    try {
+      setIsConnecting(true);
+      console.log('🔐 Importing wallet with PIN protection...');
+
+      const walletAddress = await pinWalletService.importWalletWithPin(privateKey, pin);
+
+      // Store wallet type preference
+      await AsyncStorage.setItem(WALLET_TYPE_KEY, 'burner');
+
+      // Unlock the wallet immediately after import
+      const wallet = await pinWalletService.unlockWithPin(pin);
+      walletRef.current = wallet;
+
+      setWalletType('burner');
+      setAddress(walletAddress as Address);
+      setIsConnected(true);
+      setIsLocked(false);
+
+      console.log('✅ Wallet imported with PIN protection:', walletAddress);
+
+      // Start session manager
+      sessionManager.start();
+
+      // Load balance
+      await refreshBalanceInternal(wallet);
+    } catch (error) {
+      console.error('❌ Failed to import wallet with PIN:', error);
+      throw error;
+    } finally {
+      setIsConnecting(false);
+    }
+  };
+
+  /**
+   * Unlock wallet with PIN
+   */
+  const unlockWithPin = async (pin: string): Promise<boolean> => {
+    try {
+      console.log('🔓 Unlocking wallet with PIN...');
+
+      const wallet = await pinWalletService.unlockWithPin(pin);
+      walletRef.current = wallet;
+
+      setIsLocked(false);
+
+      // Start session manager
+      sessionManager.start();
+
+      console.log('✅ Wallet unlocked');
+
+      // Load balance
+      await refreshBalanceInternal(wallet);
+
+      return true;
+    } catch (error) {
+      console.error('❌ Failed to unlock wallet:', error);
+      return false;
+    }
+  };
+
+  /**
+   * Lock wallet (clear from memory)
+   */
+  const lockWallet = () => {
+    console.log('🔒 Locking wallet...');
+
+    clearInMemoryWallet();
+    setIsLocked(true);
+
+    console.log('✅ Wallet locked');
+  };
+
+  /**
+   * Change PIN
+   */
+  const changePin = async (currentPin: string, newPin: string) => {
+    try {
+      console.log('🔑 Changing PIN...');
+
+      await pinWalletService.changePin(currentPin, newPin);
+
+      console.log('✅ PIN changed successfully');
+    } catch (error) {
+      console.error('❌ Failed to change PIN:', error);
+      throw error;
+    }
+  };
+
+  /**
+   * Connect burner wallet (legacy - redirects to PIN flow)
+   */
+  const connectBurnerWallet = async (password?: string) => {
+    // Legacy method - now handled by PIN-protected wallet
+    throw new Error('Please use createPinProtectedWallet instead');
   };
 
   /**
@@ -214,8 +365,13 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
         return null;
       }
 
+      if (isLocked) {
+        console.error('❌ Wallet is locked');
+        return null;
+      }
+
       if (walletType === 'burner') {
-        const wallet = burnerWalletService.getWallet();
+        const wallet = walletRef.current;
         if (wallet) {
           // Connect to Status Network provider
           return await contractService.createSigner(wallet);
@@ -248,12 +404,12 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
    */
   const refreshBalance = async () => {
     try {
-      if (!isConnected || !address) {
+      if (!isConnected || !address || isLocked) {
         return;
       }
 
       if (walletType === 'burner') {
-        const wallet = burnerWalletService.getWallet();
+        const wallet = walletRef.current;
         if (wallet) {
           await refreshBalanceInternal(wallet);
         }
@@ -291,10 +447,14 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
         throw new Error('No wallet connected');
       }
 
+      if (isLocked) {
+        throw new Error('Wallet is locked');
+      }
+
       if (walletType === 'burner') {
-        const wallet = burnerWalletService.getWallet();
+        const wallet = walletRef.current;
         if (!wallet) {
-          throw new Error('Burner wallet not found');
+          throw new Error('Wallet not found');
         }
 
         // Sign typed data using ethers
@@ -317,18 +477,29 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
   };
 
   const value: WalletContextState = {
+    // Wallet state
     walletType,
     address,
     isConnected,
     isConnecting,
     isLoading,
+    isLocked,
+    // PIN-protected wallet methods
+    createPinProtectedWallet,
+    importWalletWithPin,
+    unlockWithPin,
+    lockWallet,
+    changePin,
+    // Legacy methods
     connectBurnerWallet,
     connectWalletConnect,
     connectEmbeddedWallet,
     disconnect,
+    // Provider/signer access
     getSigner,
     getProvider,
     signTypedData,
+    // Balance
     balance,
     refreshBalance,
   };

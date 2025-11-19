@@ -5,6 +5,8 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useWallet } from '../contexts/WalletContext';
 import { LoginScreen } from '../screens/LoginScreen';
 import { ImportAccountScreen } from '../screens/ImportAccountScreen';
+import { CreatePINScreen } from '../screens/CreatePINScreen';
+import { PINEntryScreen } from '../screens/PINEntryScreen';
 import { AppNavigator } from '../navigation/AppNavigator';
 
 const UnauthStack = createNativeStackNavigator();
@@ -19,13 +21,14 @@ const UnauthenticatedNavigator = () => {
       >
         <UnauthStack.Screen name="Login" component={LoginScreen} />
         <UnauthStack.Screen name="ImportAccount" component={ImportAccountScreen} />
+        <UnauthStack.Screen name="CreatePIN" component={CreatePINScreen} />
       </UnauthStack.Navigator>
     </NavigationContainer>
   );
 };
 
 export const AuthenticatedApp = () => {
-  const { address, isLoading } = useWallet();
+  const { address, isLoading, isLocked } = useWallet();
 
   if (isLoading) {
     return (
@@ -47,7 +50,12 @@ export const AuthenticatedApp = () => {
     return <UnauthenticatedNavigator />;
   }
 
-  // Show main app with navigation if wallet is connected
+  // Show PIN entry screen if wallet is locked
+  if (isLocked) {
+    return <PINEntryScreen />;
+  }
+
+  // Show main app with navigation if wallet is connected and unlocked
   return (
     <NavigationContainer>
       <AppNavigator />
