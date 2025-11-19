@@ -113,10 +113,8 @@ export const LoginScreen = ({ navigation }: any) => {
               style={styles.logo}
               resizeMode="contain"
             />
-            <Text style={styles.logoText}>CANARY</Text>
+            <Text style={styles.logoText}>CANARY [BETA]</Text>
           </View>
-
-          <Text style={styles.title}>Canary Testnet Demo</Text>
 
           <View style={styles.subtitleContainer}>
             <Text style={styles.subtitle}>
@@ -211,27 +209,20 @@ const styles = StyleSheet.create({
     marginTop: 60,
   },
   logoContainer: {
-    flexDirection: 'row',
+    flexDirection: 'column',
     alignItems: 'center',
     marginBottom: 32,
   },
   logo: {
-    height: 24,
-    width: 24,
-    marginRight: 12,
+    height: 48,
+    width: 48,
+    marginBottom: 12,
   },
   logoText: {
     fontSize: 18,
     fontWeight: '600',
     letterSpacing: 2,
     color: '#111827',
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#111827',
-    marginBottom: 16,
-    textAlign: 'center',
   },
   subtitleContainer: {
     paddingHorizontal: 16,
