@@ -6,9 +6,6 @@ import { Address } from '../types/dossier';
 // Contract address on Status Network Sepolia (V3 with Guardian features)
 export const DOSSIER_CONTRACT_ADDRESS: Address = '0x1e42d08E70cB4b91A3F01069521fa0be9F9e176f';
 
-// Legacy V2 contract address (for reference - no guardian support)
-export const DOSSIER_V2_ADDRESS: Address = '0x671f15e4bAF8aB59FA4439b5866E1Ed048ca79e0';
-
 // DossierV3 Contract ABI (complete interface with Guardian support)
 export const DOSSIER_ABI = [
   {
@@ -1370,5 +1367,3 @@ export const DOSSIER_ABI = [
   }
 ] as const;
 
-// Legacy V2 ABI export for backward compatibility
-export const DOSSIER_V2_ABI = DOSSIER_ABI;

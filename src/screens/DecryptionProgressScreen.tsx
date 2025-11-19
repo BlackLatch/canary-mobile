@@ -73,7 +73,8 @@ export const DecryptionProgressScreen = () => {
     ));
   };
 
-  const getMimeTypeCategory = (mimeType: string): string => {
+  const getMimeTypeCategory = (mimeType: string | undefined): string => {
+    if (!mimeType) return 'file';
     if (mimeType.startsWith('audio/')) return 'audio';
     if (mimeType.startsWith('video/')) return 'video';
     if (mimeType.startsWith('image/')) return 'image';
@@ -104,15 +105,15 @@ export const DecryptionProgressScreen = () => {
       console.log(`📄 Found ${manifest.files.length} files in manifest`);
 
       // Step 2: Initialize file list with metadata from manifest
-      const initialFiles: DecryptedFile[] = manifest.files.map((fileEntry) => ({
-        index: fileEntry.index,
-        ipfsHash: fileEntry.encryptedFileHash,
+      const initialFiles: DecryptedFile[] = manifest.files.map((fileEntry, index) => ({
+        index: index,
+        ipfsHash: fileEntry.encryptedHash,
         status: 'pending' as FileStatus,
         progress: 0,
-        fileName: fileEntry.originalName,
-        fileType: getMimeTypeCategory(fileEntry.mimeType),
-        mimeType: fileEntry.mimeType,
-        size: fileEntry.sizeBytes,
+        fileName: fileEntry.name,
+        fileType: getMimeTypeCategory(fileEntry.type),
+        mimeType: fileEntry.type,
+        size: fileEntry.size,
       }));
 
       setFiles(initialFiles);
@@ -124,7 +125,7 @@ export const DecryptionProgressScreen = () => {
 
         try {
           updateFileStatus(i, { status: 'downloading', progress: 0 });
-          const encryptedData = await retrieveFromPinata(fileEntry.encryptedFileHash);
+          const encryptedData = await retrieveFromPinata(fileEntry.encryptedHash);
           updateFileStatus(i, { status: 'downloading', progress: 50 });
 
           updateFileStatus(i, { status: 'decrypting', progress: 60 });
@@ -132,7 +133,7 @@ export const DecryptionProgressScreen = () => {
           updateFileStatus(i, { status: 'decrypting', progress: 90 });
 
           // Save with original filename from manifest
-          const decryptedPath = `${dossierDir}/${fileEntry.originalName}`;
+          const decryptedPath = `${dossierDir}/${fileEntry.name}`;
           await RNFS.writeFile(decryptedPath, Buffer.from(decryptedData).toString('base64'), 'base64');
 
           updateFileStatus(i, {
@@ -141,9 +142,9 @@ export const DecryptionProgressScreen = () => {
             localPath: decryptedPath,
           });
 
-          console.log(`✅ Decrypted: ${fileEntry.originalName}`);
+          console.log(`✅ Decrypted: ${fileEntry.name}`);
         } catch (error: any) {
-          console.error(`❌ Failed to decrypt ${fileEntry.originalName}:`, error);
+          console.error(`❌ Failed to decrypt ${fileEntry.name}:`, error);
           updateFileStatus(i, { status: 'failed', progress: 0, error: error.message || 'Unknown error' });
         }
       }

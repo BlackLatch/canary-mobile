@@ -10,7 +10,7 @@
 import { TacoMobile, EncryptedData, DecryptionRequest, TacoError, hexToBytes, bytesToHex } from '@nucypher/taco-mobile';
 import { ethers } from 'ethers';
 import { TACO_DOMAIN, RITUAL_ID, TACO_NETWORK_CHAIN_ID } from '../constants/taco';
-import { DOSSIER_V2_ADDRESS } from '../constants/contracts';
+import { DOSSIER_CONTRACT_ADDRESS } from '../constants/contracts';
 import { STATUS_SEPOLIA } from '../constants/networks';
 import type { DeadmanCondition, EncryptionResult, FileInfo, TraceJson } from '../types/dossier';
 import { uploadToPinata, type PinataUploadResult } from './pinata';
@@ -177,7 +177,7 @@ class TacoMobileService {
    */
   private createPublicDossierConditionJson(userAddress: string, dossierId: bigint): string {
     console.log(`🔒 Creating PUBLIC Contract condition: user=${userAddress}, dossier=${dossierId.toString()}`);
-    console.log(`📍 Contract: ${DOSSIER_V2_ADDRESS} on Status Network Sepolia`);
+    console.log(`📍 Contract: ${DOSSIER_CONTRACT_ADDRESS} on Status Network Sepolia`);
 
     // Create ContractCondition JSON matching TACo SDK format
     // Reference: https://docs.taco.build/for-developers/taco-sdk/references/conditions/contractcondition/use-custom-contract-calls
@@ -185,7 +185,7 @@ class TacoMobileService {
       version: '1.0.0',
       condition: {
         conditionType: 'contract',
-        contractAddress: DOSSIER_V2_ADDRESS,
+        contractAddress: DOSSIER_CONTRACT_ADDRESS,
         method: 'shouldDossierStayEncrypted',
         parameters: [
           userAddress,  // User address known at encryption time
@@ -227,12 +227,12 @@ class TacoMobileService {
   ): string {
     console.log(`🔒 Creating PRIVATE Compound condition: user=${userAddress}, dossier=${dossierId.toString()}`);
     console.log(`👥 Recipients: ${recipients.join(', ')}`);
-    console.log(`📍 Contract: ${DOSSIER_V2_ADDRESS} on Status Network Sepolia`);
+    console.log(`📍 Contract: ${DOSSIER_CONTRACT_ADDRESS} on Status Network Sepolia`);
 
     // Condition 1: Contract check (same as public)
     const contractCondition = {
       conditionType: 'contract',
-      contractAddress: DOSSIER_V2_ADDRESS,
+      contractAddress: DOSSIER_CONTRACT_ADDRESS,
       method: 'shouldDossierStayEncrypted',
       parameters: [
         userAddress,
@@ -585,7 +585,7 @@ class TacoMobileService {
       // Dossier integration metadata (required)
       dossier_id: condition.dossierId.toString(),
       user_address: condition.userAddress,
-      contract_address: DOSSIER_V2_ADDRESS,
+      contract_address: DOSSIER_CONTRACT_ADDRESS,
       // File metadata
       original_filename: commitResult.encryptionResult.originalFileName,
     };

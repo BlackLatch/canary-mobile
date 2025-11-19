@@ -25,7 +25,7 @@ import { FileViewer } from '../components/FileViewer';
 import DocumentPicker from 'react-native-document-picker';
 import { launchImageLibrary } from 'react-native-image-picker';
 
-type ReleaseMode = 'public' | 'contacts';
+type ReleaseMode = 'public' | 'private';
 type RecordingMode = 'voice' | 'video' | null;
 
 const INTERVAL_PRESETS = [
@@ -65,7 +65,7 @@ export const CreateDossierScreen = () => {
   const [releaseMode, setReleaseMode] = useState<ReleaseMode | null>(null);
   const [emergencyContacts, setEmergencyContacts] = useState<string[]>(['']);
   const [expandedRecommendations, setExpandedRecommendations] = useState<ReleaseMode | null>(null);
-  const [step2SubStep, setStep2SubStep] = useState<'selection' | 'contacts'>('selection'); // selection or contacts management
+  const [step2SubStep, setStep2SubStep] = useState<'selection' | 'recipients'>('selection'); // selection or recipients management
 
   // Step 3: Guardian Configuration
   const [guardians, setGuardians] = useState<string[]>(['']);
@@ -217,7 +217,7 @@ export const CreateDossierScreen = () => {
         if (!releaseMode) {
           return false; // Must select a release mode
         }
-        if (releaseMode === 'contacts') {
+        if (releaseMode === 'private') {
           const validContacts = emergencyContacts.filter(c => c.trim().length > 0);
           return validContacts.length > 0;
         }
@@ -278,7 +278,7 @@ export const CreateDossierScreen = () => {
 
   const handleBack = () => {
     // Handle sub-step navigation for step 2
-    if (currentStep === 2 && step2SubStep === 'contacts') {
+    if (currentStep === 2 && step2SubStep === 'recipients') {
       setStep2SubStep('selection');
       return;
     }
@@ -379,7 +379,7 @@ export const CreateDossierScreen = () => {
       const intervalSeconds = intervalMinutes * 60;
 
       // Prepare recipients based on release mode
-      const recipients = releaseMode === 'contacts'
+      const recipients = releaseMode === 'private'
         ? emergencyContacts.filter(c => c.trim().length > 0) as `0x${string}`[]
         : [];
 
@@ -627,45 +627,45 @@ export const CreateDossierScreen = () => {
         <TouchableOpacity
           style={[
             styles.optionCard,
-            releaseMode === 'contacts' && styles.optionCardSelected,
+            releaseMode === 'private' && styles.optionCardSelected,
             { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }
           ]}
           onPress={() => {
-            setReleaseMode('contacts');
-            setStep2SubStep('contacts');
+            setReleaseMode('private');
+            setStep2SubStep('recipients');
           }}
         >
           <View style={styles.optionHeader}>
             <View style={[
               styles.radioButton,
-              releaseMode === 'contacts' && styles.radioButtonSelected,
+              releaseMode === 'private' && styles.radioButtonSelected,
             ]}>
-              {releaseMode === 'contacts' && <View style={styles.radioButtonInner} />}
+              {releaseMode === 'private' && <View style={styles.radioButtonInner} />}
             </View>
             <Text style={[styles.optionTitle, { color: theme.colors.text }]}>
-              Emergency Contacts
+              Private Release
             </Text>
           </View>
           <View style={styles.optionDescriptionContainer}>
             <Text style={[styles.optionDescription, { color: theme.colors.textSecondary }]}>
-              Your document will be privately sent to specific contacts if no check-in occurs by your selected deadline.
+              Your document will be privately sent to specific recipients if no check-in occurs by your selected deadline.
             </Text>
 
             <TouchableOpacity
               style={styles.recommendedToggle}
-              onPress={() => setExpandedRecommendations(expandedRecommendations === 'contacts' ? null : 'contacts')}
+              onPress={() => setExpandedRecommendations(expandedRecommendations === 'private' ? null : 'private')}
             >
               <Text style={[styles.optionRecommendedTitle, { color: theme.colors.primary }]}>
                 Recommended when
               </Text>
               <Icon
-                name={expandedRecommendations === 'contacts' ? 'chevron-up' : 'chevron-down'}
+                name={expandedRecommendations === 'private' ? 'chevron-up' : 'chevron-down'}
                 size={16}
                 color={theme.colors.primary}
               />
             </TouchableOpacity>
 
-            {expandedRecommendations === 'contacts' && (
+            {expandedRecommendations === 'private' && (
               <View style={styles.recommendedContent}>
                 <Text style={[styles.optionBullet, { color: theme.colors.textSecondary }]}>
                   • You want to share with selected individuals only
@@ -688,11 +688,11 @@ export const CreateDossierScreen = () => {
     </View>
   );
 
-  // Step 2: Emergency Contacts Management Screen
+  // Step 2: Private Recipients Management Screen
   const renderStep2Contacts = () => (
     <View style={styles.stepContent}>
       <Text style={[styles.stepTitle, { color: theme.colors.text }]}>
-        Emergency Contacts
+        Private Recipients
       </Text>
       <Text style={[styles.stepSubtitle, { color: theme.colors.textSecondary }]}>
         Step 2 of 6
@@ -700,10 +700,10 @@ export const CreateDossierScreen = () => {
 
       <View style={[styles.card, { backgroundColor: theme.colors.card }]}>
         <Text style={[styles.label, { color: theme.colors.text }]}>
-          Add Contact Addresses <Text style={styles.required}>*</Text>
+          Private Recipient Addresses <Text style={styles.required}>*</Text>
         </Text>
         <Text style={[styles.hint, { color: theme.colors.textSecondary }]}>
-          Enter Ethereum addresses for contacts who will receive your encrypted document
+          Enter Ethereum addresses for recipients who will receive your encrypted document
         </Text>
 
         {emergencyContacts.map((contact, index) => (
@@ -741,10 +741,10 @@ export const CreateDossierScreen = () => {
 
       <View style={[styles.infoCard, { backgroundColor: theme.colors.card }]}>
         <Text style={[styles.infoTitle, { color: theme.colors.text }]}>
-          About Emergency Contacts
+          About Private Release
         </Text>
         <Text style={[styles.infoText, { color: theme.colors.textSecondary }]}>
-          These addresses will receive access to decrypt your document if you fail to check in. Ensure these are trusted contacts with valid Ethereum addresses.
+          These addresses will receive access to decrypt your document if you fail to check in. Ensure these are trusted recipients with valid Ethereum addresses.
         </Text>
       </View>
     </View>
@@ -752,7 +752,7 @@ export const CreateDossierScreen = () => {
 
   // Step 2: Router
   const renderStep2 = () => {
-    if (step2SubStep === 'contacts') {
+    if (step2SubStep === 'recipients') {
       return renderStep2Contacts();
     }
     return renderStep2Selection();
@@ -1294,7 +1294,7 @@ export const CreateDossierScreen = () => {
             Release Visibility
           </Text>
           <Text style={[styles.summaryValue, { color: theme.colors.text }]}>
-            {releaseMode === 'public' ? 'Public Release' : 'Emergency Contacts'}
+            {releaseMode === 'public' ? 'Public Release' : 'Private Release'}
           </Text>
 
           <Text style={[styles.summaryLabel, { color: theme.colors.textSecondary }]}>
@@ -1325,15 +1325,15 @@ export const CreateDossierScreen = () => {
             </>
           )}
 
-          {releaseMode === 'contacts' && validContacts.length > 0 && (
+          {releaseMode === 'private' && validContacts.length > 0 && (
             <>
               <Text style={[styles.summaryLabel, { color: theme.colors.textSecondary }]}>
-                Emergency Contacts
+                Private Recipients
               </Text>
               {validContacts.map((contact, index) => (
                 <View key={index} style={styles.summaryContactRow}>
                   <Text style={[styles.summaryContactLabel, { color: theme.colors.textSecondary }]}>
-                    Contact #{index + 1}
+                    Recipient #{index + 1}
                   </Text>
                   <Text style={[styles.summaryContact, { color: theme.colors.text }]}>
                     {contact}

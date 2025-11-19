@@ -441,11 +441,11 @@ export const DossierDetailScreen = () => {
         {/* Recipients - Only show for private dossiers (recipients beyond owner) */}
         {dossier.recipients && dossier.recipients.length > 1 && (
           <View style={[styles.panel, { backgroundColor: theme.colors.card, borderColor: theme.colors.border }]}>
-            <Text style={[styles.panelTitle, { color: theme.colors.text }]}>Emergency Contacts</Text>
+            <Text style={[styles.panelTitle, { color: theme.colors.text }]}>Private Recipients</Text>
 
             {dossier.recipients.slice(1).map((recipient, index) => (
               <View key={index} style={[styles.recipientItem, { borderTopColor: theme.colors.border }]}>
-                <Text style={[styles.recipientNumber, { color: theme.colors.text }]}>Contact #{index + 1}</Text>
+                <Text style={[styles.recipientNumber, { color: theme.colors.text }]}>Recipient #{index + 1}</Text>
                 <Text style={[styles.recipientAddress, { color: theme.colors.textSecondary }]} numberOfLines={1}>
                   {recipient}
                 </Text>

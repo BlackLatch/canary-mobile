@@ -32,7 +32,7 @@ export const CHECK_IN_INTERVALS = {
   ONE_YEAR: 31536000,
 } as const;
 
-// Contract constants (from DossierV2)
+// Contract constants (from DossierV3)
 export const DOSSIER_LIMITS = {
   MIN_CHECK_IN_INTERVAL: 3600, // 1 hour
   MAX_CHECK_IN_INTERVAL: 31536000, // 1 year
