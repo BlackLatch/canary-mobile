@@ -32,6 +32,7 @@ interface WalletContextState {
   unlockWithPin: (pin: string) => Promise<boolean>;
   lockWallet: () => void;
   changePin: (currentPin: string, newPin: string) => Promise<void>;
+  resetWallet: () => Promise<void>;
 
   // Legacy methods (will be updated to use PIN)
   connectBurnerWallet: (password?: string) => Promise<void>;
@@ -144,13 +145,12 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
       setIsConnecting(true);
       console.log('🔐 Creating PIN-protected wallet...');
 
-      const walletAddress = await pinWalletService.createPinProtectedWallet(pin);
+      const { wallet, address: walletAddress } = await pinWalletService.createPinProtectedWallet(pin);
 
       // Store wallet type preference
       await AsyncStorage.setItem(WALLET_TYPE_KEY, 'burner');
 
-      // Unlock the wallet immediately after creation
-      const wallet = await pinWalletService.unlockWithPin(pin);
+      // Store wallet instance (already unlocked from creation)
       walletRef.current = wallet;
 
       setWalletType('burner');
@@ -181,13 +181,12 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
       setIsConnecting(true);
       console.log('🔐 Importing wallet with PIN protection...');
 
-      const walletAddress = await pinWalletService.importWalletWithPin(privateKey, pin);
+      const { wallet, address: walletAddress } = await pinWalletService.importWalletWithPin(privateKey, pin);
 
       // Store wallet type preference
       await AsyncStorage.setItem(WALLET_TYPE_KEY, 'burner');
 
-      // Unlock the wallet immediately after import
-      const wallet = await pinWalletService.unlockWithPin(pin);
+      // Store wallet instance (already unlocked from import)
       walletRef.current = wallet;
 
       setWalletType('burner');
@@ -261,6 +260,39 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
       console.log('✅ PIN changed successfully');
     } catch (error) {
       console.error('❌ Failed to change PIN:', error);
+      throw error;
+    }
+  };
+
+  /**
+   * Reset wallet completely
+   */
+  const resetWallet = async () => {
+    try {
+      console.log('🔄 Resetting wallet...');
+
+      // Clear from secure storage
+      await pinWalletService.resetWallet();
+
+      // Clear wallet type preference
+      await AsyncStorage.removeItem(WALLET_TYPE_KEY);
+
+      // Clear in-memory wallet
+      clearInMemoryWallet();
+
+      // Reset all state - this will trigger AuthenticatedApp to show login screen
+      setWalletType(null);
+      setAddress(null);
+      setIsConnected(false);
+      setIsLocked(false);
+      setBalance(null);
+
+      // Stop session manager
+      sessionManager.stop();
+
+      console.log('✅ Wallet reset complete - ready for new account creation');
+    } catch (error) {
+      console.error('❌ Failed to reset wallet:', error);
       throw error;
     }
   };
@@ -490,6 +522,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     unlockWithPin,
     lockWallet,
     changePin,
+    resetWallet,
     // Legacy methods
     connectBurnerWallet,
     connectWalletConnect,

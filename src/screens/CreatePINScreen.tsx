@@ -4,22 +4,24 @@
  * Screen for setting up a new PIN when creating or importing a wallet
  */
 
-import React, { useState, useContext } from 'react';
+import React, { useState } from 'react';
 import {
   View,
-  SafeAreaView,
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
   Text,
   ScrollView,
   Alert,
+  ActivityIndicator,
+  Modal,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RouteProp } from '@react-navigation/native';
 import { PINInput } from '../components/PINInput';
-import { useTheme } from '../hooks/useTheme';
-import { WalletContext } from '../contexts/WalletContext';
+import { useTheme } from '../contexts/ThemeContext';
+import { useWallet } from '../contexts/WalletContext';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 // Navigation types
@@ -41,8 +43,8 @@ interface CreatePINScreenProps {
 }
 
 export const CreatePINScreen: React.FC<CreatePINScreenProps> = ({ navigation, route }) => {
-  const theme = useTheme();
-  const { createPinProtectedWallet, importWalletWithPin } = useContext(WalletContext);
+  const { theme } = useTheme();
+  const { createPinProtectedWallet, importWalletWithPin } = useWallet();
   const { mode, privateKey, mnemonic } = route.params || { mode: 'create' };
 
   const [step, setStep] = useState<'create' | 'confirm'>('create');
@@ -74,6 +76,10 @@ export const CreatePINScreen: React.FC<CreatePINScreenProps> = ({ navigation, ro
    * Handle PIN confirmation
    */
   const handleConfirmPin = async (pin: string) => {
+    console.log('handleConfirmPin called with pin length:', pin.length);
+    console.log('First PIN length:', firstPin.length);
+    console.log('PINs match:', pin === firstPin);
+
     if (pin !== firstPin) {
       setError('PINs do not match. Please try again.');
       // Reset to first step
@@ -86,16 +92,21 @@ export const CreatePINScreen: React.FC<CreatePINScreenProps> = ({ navigation, ro
     }
 
     // PINs match - proceed with wallet creation/import
+    console.log('PINs match! Proceeding with mode:', mode);
     setLoading(true);
     setError(undefined);
 
     try {
       if (mode === 'create') {
         // Create new wallet with PIN
+        console.log('Creating new PIN-protected wallet...');
         await createPinProtectedWallet(pin);
+        console.log('Wallet created successfully');
       } else if (mode === 'import' && privateKey) {
         // Import existing wallet with PIN
+        console.log('Importing wallet with PIN...');
         await importWalletWithPin(privateKey, pin);
+        console.log('Wallet imported successfully');
       } else if (mode === 'import' && mnemonic) {
         // Convert mnemonic to private key first (if needed)
         // For now, assuming privateKey is provided
@@ -104,6 +115,8 @@ export const CreatePINScreen: React.FC<CreatePINScreenProps> = ({ navigation, ro
 
       // Success - wallet is created and unlocked
       // Navigation will be handled by AuthenticatedApp
+      console.log('Success - wallet operation complete');
+      // Note: Loading state should be cleared by navigation
     } catch (err: any) {
       console.error('PIN creation error:', err);
       setError(err.message || 'Failed to create PIN. Please try again.');
@@ -205,6 +218,7 @@ export const CreatePINScreen: React.FC<CreatePINScreenProps> = ({ navigation, ro
 
             {/* PIN Input */}
             <PINInput
+              key={step}
               title={step === 'create' ? 'Create your PIN' : 'Confirm your PIN'}
               subtitle={
                 step === 'create'
@@ -214,7 +228,7 @@ export const CreatePINScreen: React.FC<CreatePINScreenProps> = ({ navigation, ro
               onComplete={step === 'create' ? handleFirstPin : handleConfirmPin}
               error={error}
               loading={loading}
-              showDigits={step === 'create'}
+              showDigits={false}
               testID={step === 'create' ? 'pin-create' : 'pin-confirm'}
             />
 
@@ -253,6 +267,25 @@ export const CreatePINScreen: React.FC<CreatePINScreenProps> = ({ navigation, ro
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Loading Overlay */}
+      <Modal
+        visible={loading}
+        transparent
+        animationType="fade"
+      >
+        <View style={styles.loadingOverlay}>
+          <View style={[styles.loadingCard, { backgroundColor: theme.colors.surface }]}>
+            <ActivityIndicator size="large" color={theme.colors.primary} />
+            <Text style={[styles.loadingText, { color: theme.colors.text }]}>
+              {mode === 'create' ? 'Creating your wallet...' : 'Importing your wallet...'}
+            </Text>
+            <Text style={[styles.loadingSubtext, { color: theme.colors.textSecondary }]}>
+              This may take a few seconds
+            </Text>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -323,5 +356,33 @@ const styles = StyleSheet.create({
     fontSize: 14,
     flex: 1,
     lineHeight: 20,
+  },
+  loadingOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingCard: {
+    padding: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    minWidth: 250,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  loadingText: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginTop: 16,
+    textAlign: 'center',
+  },
+  loadingSubtext: {
+    fontSize: 14,
+    marginTop: 8,
+    textAlign: 'center',
   },
 });

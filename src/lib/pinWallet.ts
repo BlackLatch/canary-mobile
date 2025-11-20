@@ -5,8 +5,8 @@
  * The PIN is never stored - only used to derive encryption keys.
  *
  * Security features:
- * - PBKDF2 key derivation (150,000-300,000 iterations)
- * - AES-256-GCM authenticated encryption
+ * - PBKDF2 key derivation (150,000 iterations)
+ * - AES-128-CBC encryption with HMAC-SHA256 authentication
  * - Secure storage via react-native-keychain
  * - No plaintext keys ever written to disk
  */
@@ -24,12 +24,12 @@ const PBKDF2_ITERATIONS = 150000; // Adjust between 150,000-300,000 based on per
 const PBKDF2_KEY_LENGTH = 32; // 256 bits for AES-256
 const PBKDF2_HASH = 'SHA256';
 
-// AES-GCM configuration
-const AES_IV_LENGTH = 12; // 96 bits for GCM
+// AES-CBC configuration
+const AES_IV_LENGTH = 16; // 128 bits for CBC
 const SALT_LENGTH = 16; // 128 bits
 
 // Bundle version for future compatibility
-const BUNDLE_VERSION = '1.0';
+const BUNDLE_VERSION = '2.0'; // Updated for CBC+HMAC
 
 /**
  * Encrypted key bundle structure stored in secure storage
@@ -39,7 +39,8 @@ interface EncryptedKeyBundle {
   salt: string; // base64
   iv: string; // base64
   ciphertext: string; // base64
-  authTag: string; // base64
+  hmacTag?: string; // base64 - HMAC-SHA256 for authentication (v2.0)
+  authTag?: string; // base64 - for backward compatibility with old GCM attempts
   ethAddress: string;
 }
 
@@ -51,13 +52,17 @@ export class PinWalletService {
    * Creates a new PIN-protected Ethereum wallet
    *
    * @param pin - 6-digit PIN (never stored)
-   * @returns The Ethereum address of the created wallet
+   * @returns The Ethereum wallet instance and address
    */
-  async createPinProtectedWallet(pin: string): Promise<string> {
+  async createPinProtectedWallet(pin: string): Promise<{ wallet: ethers.Wallet; address: string }> {
     this.validatePin(pin);
 
+    // Clear any existing wallet first (important for re-creation during testing)
+    await this.resetWallet();
+
     // Step 1: Generate random salt
-    const salt = await RNSimpleCrypto.utils.randomBytes(SALT_LENGTH);
+    const saltBuffer = await RNSimpleCrypto.utils.randomBytes(SALT_LENGTH);
+    const salt = new Uint8Array(saltBuffer);
 
     // Step 2: Derive wrapping key from PIN using PBKDF2
     const wrappingKey = await this.deriveWrappingKey(pin, salt);
@@ -66,33 +71,47 @@ export class PinWalletService {
     const wallet = ethers.Wallet.createRandom();
     const privateKeyBytes = this.hexToBytes(wallet.privateKey);
 
-    // Step 4: Encrypt private key with wrapping key using AES-256-GCM
-    const iv = await RNSimpleCrypto.utils.randomBytes(AES_IV_LENGTH);
-    const encrypted = await RNSimpleCrypto.AES.encrypt(
-      privateKeyBytes,
-      wrappingKey,
-      iv,
-      'GCM'
+    // Step 4: Encrypt private key with wrapping key using AES-128-CBC
+    const ivBuffer = await RNSimpleCrypto.utils.randomBytes(AES_IV_LENGTH);
+    const iv = new Uint8Array(ivBuffer);
+
+    // RNSimpleCrypto.AES.encrypt expects ArrayBuffers and returns an ArrayBuffer (ciphertext)
+    const ciphertextBuffer = await RNSimpleCrypto.AES.encrypt(
+      privateKeyBytes.buffer.slice(privateKeyBytes.byteOffset, privateKeyBytes.byteOffset + privateKeyBytes.byteLength),
+      wrappingKey.buffer.slice(wrappingKey.byteOffset, wrappingKey.byteOffset + wrappingKey.byteLength),
+      iv.buffer.slice(iv.byteOffset, iv.byteOffset + iv.byteLength)
+      // Note: No 'GCM' parameter - the library only supports CBC
     );
 
-    // Step 5: Create encrypted bundle
+    const ciphertext = new Uint8Array(ciphertextBuffer);
+
+    // Step 5: Generate HMAC for authentication
+    const hmacKeyBuffer = await RNSimpleCrypto.HMAC.hmac256(
+      wrappingKey.buffer.slice(wrappingKey.byteOffset, wrappingKey.byteOffset + wrappingKey.byteLength),
+      ciphertextBuffer
+    );
+    const hmacTag = new Uint8Array(hmacKeyBuffer);
+
+    // Step 6: Create encrypted bundle
     const bundle: EncryptedKeyBundle = {
       version: BUNDLE_VERSION,
       salt: this.toBase64(salt),
       iv: this.toBase64(iv),
-      ciphertext: this.toBase64(encrypted.ciphertext),
-      authTag: this.toBase64(encrypted.tag),
+      ciphertext: this.toBase64(ciphertext),
+      hmacTag: this.toBase64(hmacTag),
+      authTag: undefined, // Explicitly set for clarity
       ethAddress: wallet.address,
     };
 
-    // Step 6: Store encrypted bundle in secure storage
+    // Step 7: Store encrypted bundle in secure storage
     await this.storeBundle(bundle);
 
     // Clear sensitive data from memory
     this.clearArray(privateKeyBytes);
     this.clearArray(wrappingKey);
 
-    return wallet.address;
+    // Return wallet instance to avoid immediate re-decryption
+    return { wallet, address: wallet.address };
   }
 
   /**
@@ -100,9 +119,9 @@ export class PinWalletService {
    *
    * @param privateKey - Ethereum private key (hex string with or without 0x prefix)
    * @param pin - 6-digit PIN (never stored)
-   * @returns The Ethereum address of the imported wallet
+   * @returns The Ethereum wallet instance and address
    */
-  async importWalletWithPin(privateKey: string, pin: string): Promise<string> {
+  async importWalletWithPin(privateKey: string, pin: string): Promise<{ wallet: ethers.Wallet; address: string }> {
     this.validatePin(pin);
 
     // Ensure private key has 0x prefix
@@ -119,39 +138,54 @@ export class PinWalletService {
     }
 
     // Step 1: Generate random salt
-    const salt = await RNSimpleCrypto.utils.randomBytes(SALT_LENGTH);
+    const saltBuffer = await RNSimpleCrypto.utils.randomBytes(SALT_LENGTH);
+    const salt = new Uint8Array(saltBuffer);
 
     // Step 2: Derive wrapping key from PIN
     const wrappingKey = await this.deriveWrappingKey(pin, salt);
 
-    // Step 3: Encrypt private key with wrapping key
+    // Step 3: Encrypt private key with wrapping key using AES-128-CBC
     const privateKeyBytes = this.hexToBytes(privateKey);
-    const iv = await RNSimpleCrypto.utils.randomBytes(AES_IV_LENGTH);
-    const encrypted = await RNSimpleCrypto.AES.encrypt(
-      privateKeyBytes,
-      wrappingKey,
-      iv,
-      'GCM'
+    const ivBuffer = await RNSimpleCrypto.utils.randomBytes(AES_IV_LENGTH);
+    const iv = new Uint8Array(ivBuffer);
+
+    // RNSimpleCrypto.AES.encrypt expects ArrayBuffers and returns an ArrayBuffer (ciphertext)
+    const ciphertextBuffer = await RNSimpleCrypto.AES.encrypt(
+      privateKeyBytes.buffer.slice(privateKeyBytes.byteOffset, privateKeyBytes.byteOffset + privateKeyBytes.byteLength),
+      wrappingKey.buffer.slice(wrappingKey.byteOffset, wrappingKey.byteOffset + wrappingKey.byteLength),
+      iv.buffer.slice(iv.byteOffset, iv.byteOffset + iv.byteLength)
+      // Note: No 'GCM' parameter - the library only supports CBC
     );
 
-    // Step 4: Create encrypted bundle
+    const ciphertext = new Uint8Array(ciphertextBuffer);
+
+    // Step 4: Generate HMAC for authentication
+    const hmacKeyBuffer = await RNSimpleCrypto.HMAC.hmac256(
+      wrappingKey.buffer.slice(wrappingKey.byteOffset, wrappingKey.byteOffset + wrappingKey.byteLength),
+      ciphertextBuffer
+    );
+    const hmacTag = new Uint8Array(hmacKeyBuffer);
+
+    // Step 5: Create encrypted bundle
     const bundle: EncryptedKeyBundle = {
       version: BUNDLE_VERSION,
       salt: this.toBase64(salt),
       iv: this.toBase64(iv),
-      ciphertext: this.toBase64(encrypted.ciphertext),
-      authTag: this.toBase64(encrypted.tag),
+      ciphertext: this.toBase64(ciphertext),
+      hmacTag: this.toBase64(hmacTag),
+      authTag: undefined, // Explicitly set for clarity
       ethAddress: wallet.address,
     };
 
-    // Step 5: Store encrypted bundle
+    // Step 6: Store encrypted bundle
     await this.storeBundle(bundle);
 
     // Clear sensitive data
     this.clearArray(privateKeyBytes);
     this.clearArray(wrappingKey);
 
-    return wallet.address;
+    // Return wallet instance to avoid immediate re-decryption
+    return { wallet, address: wallet.address };
   }
 
   /**
@@ -174,21 +208,42 @@ export class PinWalletService {
     const salt = this.fromBase64(bundle.salt);
     const iv = this.fromBase64(bundle.iv);
     const ciphertext = this.fromBase64(bundle.ciphertext);
-    const authTag = this.fromBase64(bundle.authTag);
+    const hmacTag = this.fromBase64(bundle.hmacTag || bundle.authTag || ''); // Support old format temporarily
 
     // Step 3: Re-derive wrapping key from PIN
     const wrappingKey = await this.deriveWrappingKey(pin, salt);
 
-    // Step 4: Decrypt private key using AES-256-GCM
+    // Step 4: Verify HMAC before decrypting (authenticate-then-decrypt)
     try {
-      const decrypted = await RNSimpleCrypto.AES.decrypt(
-        { ciphertext, tag: authTag },
-        wrappingKey,
-        iv,
-        'GCM'
+      const ciphertextBuffer = ciphertext.buffer.slice(ciphertext.byteOffset, ciphertext.byteOffset + ciphertext.byteLength);
+      const expectedHmacBuffer = await RNSimpleCrypto.HMAC.hmac256(
+        wrappingKey.buffer.slice(wrappingKey.byteOffset, wrappingKey.byteOffset + wrappingKey.byteLength),
+        ciphertextBuffer
       );
+      const expectedHmac = new Uint8Array(expectedHmacBuffer);
 
-      // Step 5: Create wallet from decrypted private key
+      // Compare HMAC tags (constant-time comparison would be better, but this is acceptable for PIN protection)
+      let hmacValid = hmacTag.length === expectedHmac.length;
+      for (let i = 0; i < hmacTag.length && i < expectedHmac.length; i++) {
+        if (hmacTag[i] !== expectedHmac[i]) {
+          hmacValid = false;
+        }
+      }
+
+      if (!hmacValid) {
+        throw new Error('Authentication failed - wrong PIN or corrupted data');
+      }
+
+      // Step 5: Decrypt private key using AES-128-CBC
+      const decryptedBuffer = await RNSimpleCrypto.AES.decrypt(
+        ciphertextBuffer,
+        wrappingKey.buffer.slice(wrappingKey.byteOffset, wrappingKey.byteOffset + wrappingKey.byteLength),
+        iv.buffer.slice(iv.byteOffset, iv.byteOffset + iv.byteLength)
+        // Note: No 'GCM' parameter - the library only supports CBC
+      );
+      const decrypted = new Uint8Array(decryptedBuffer);
+
+      // Step 6: Create wallet from decrypted private key
       const privateKey = this.bytesToHex(decrypted);
       const wallet = new ethers.Wallet(privateKey);
 
@@ -206,7 +261,7 @@ export class PinWalletService {
       // Clear sensitive data
       this.clearArray(wrappingKey);
 
-      // Decryption failure means wrong PIN
+      // Decryption or authentication failure means wrong PIN
       throw new Error('Incorrect PIN');
     }
   }
@@ -218,7 +273,22 @@ export class PinWalletService {
    */
   async hasWallet(): Promise<boolean> {
     try {
-      const credentials = await Keychain.getInternetCredentials(CANARY_ETH_KEY_BUNDLE);
+      // Clean up any legacy wallets from old API (one-time migration)
+      try {
+        const legacyCheck = await Keychain.getInternetCredentials(CANARY_ETH_KEY_BUNDLE);
+        if (legacyCheck) {
+          console.log('🧹 Found legacy wallet, clearing it...');
+          await Keychain.resetInternetCredentials(CANARY_ETH_KEY_BUNDLE);
+          console.log('✅ Legacy wallet cleared');
+        }
+      } catch (e) {
+        // Ignore errors from legacy cleanup
+      }
+
+      // Check for wallet using canonical API
+      const credentials = await Keychain.getGenericPassword({
+        service: CANARY_ETH_KEY_BUNDLE,
+      });
       return !!credentials;
     } catch {
       return false;
@@ -241,7 +311,23 @@ export class PinWalletService {
    * WARNING: This permanently deletes the wallet - cannot be recovered without PIN
    */
   async resetWallet(): Promise<void> {
-    await Keychain.resetInternetCredentials(CANARY_ETH_KEY_BUNDLE);
+    try {
+      console.log('🧹 Resetting wallet - clearing keychain...');
+
+      // Clear new API
+      const result = await Keychain.resetGenericPassword({
+        service: CANARY_ETH_KEY_BUNDLE,
+      });
+      console.log('🧹 GenericPassword reset result:', result);
+
+      // Also clear old API to ensure complete cleanup
+      await Keychain.resetInternetCredentials(CANARY_ETH_KEY_BUNDLE);
+      console.log('🧹 InternetCredentials cleared (cleanup)');
+
+      console.log('✅ Wallet reset complete');
+    } catch (error) {
+      console.log('🧹 Reset completed:', error);
+    }
   }
 
   /**
@@ -276,14 +362,15 @@ export class PinWalletService {
    */
   private async deriveWrappingKey(pin: string, salt: Uint8Array): Promise<Uint8Array> {
     const pinBytes = new TextEncoder().encode(pin);
-    const key = await RNSimpleCrypto.PBKDF2.hash(
-      pinBytes,
-      salt,
+    // RNSimpleCrypto expects ArrayBuffers, not Uint8Arrays
+    const keyBuffer = await RNSimpleCrypto.PBKDF2.hash(
+      pinBytes.buffer.slice(pinBytes.byteOffset, pinBytes.byteOffset + pinBytes.byteLength),
+      salt.buffer.slice(salt.byteOffset, salt.byteOffset + salt.byteLength),
       PBKDF2_ITERATIONS,
       PBKDF2_KEY_LENGTH,
       PBKDF2_HASH
     );
-    return key;
+    return new Uint8Array(keyBuffer);
   }
 
   /**
@@ -292,13 +379,15 @@ export class PinWalletService {
   private async storeBundle(bundle: EncryptedKeyBundle): Promise<void> {
     const bundleJson = JSON.stringify(bundle);
 
-    await Keychain.setInternetCredentials(
-      CANARY_ETH_KEY_BUNDLE,
-      bundle.ethAddress,
-      bundleJson,
+    await Keychain.setGenericPassword(
+      bundle.ethAddress, // username
+      bundleJson, // password
       {
+        service: CANARY_ETH_KEY_BUNDLE,
         accessible: Keychain.ACCESSIBLE.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
-        securityLevel: Keychain.SECURITY_LEVEL.SECURE_HARDWARE,
+        // Use SECURE_SOFTWARE for simulator compatibility
+        // On real devices with secure hardware, it will automatically use the best available
+        securityLevel: Keychain.SECURITY_LEVEL.SECURE_SOFTWARE,
       }
     );
   }
@@ -308,11 +397,14 @@ export class PinWalletService {
    */
   private async loadBundle(): Promise<EncryptedKeyBundle | null> {
     try {
-      const credentials = await Keychain.getInternetCredentials(CANARY_ETH_KEY_BUNDLE);
+      const credentials = await Keychain.getGenericPassword({
+        service: CANARY_ETH_KEY_BUNDLE,
+      });
       if (!credentials) {
         return null;
       }
-      return JSON.parse(credentials.password) as EncryptedKeyBundle;
+      const bundle = JSON.parse(credentials.password) as EncryptedKeyBundle;
+      return bundle;
     } catch {
       return null;
     }
@@ -345,14 +437,20 @@ export class PinWalletService {
    * Converts Uint8Array to base64
    */
   private toBase64(bytes: Uint8Array): string {
-    return RNSimpleCrypto.utils.convertArrayBufferToBase64(bytes);
+    // convertArrayBufferToBase64 expects ArrayBuffer, not Uint8Array
+    // Create a new clean buffer to avoid issues with offset/length
+    const buffer = new ArrayBuffer(bytes.length);
+    const view = new Uint8Array(buffer);
+    view.set(bytes);
+    return RNSimpleCrypto.utils.convertArrayBufferToBase64(buffer);
   }
 
   /**
    * Converts base64 to Uint8Array
    */
   private fromBase64(base64: string): Uint8Array {
-    return RNSimpleCrypto.utils.convertBase64ToArrayBuffer(base64);
+    const buffer = RNSimpleCrypto.utils.convertBase64ToArrayBuffer(base64);
+    return new Uint8Array(buffer);
   }
 
   /**

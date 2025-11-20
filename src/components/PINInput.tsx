@@ -17,7 +17,7 @@ import {
   Vibration,
   ActivityIndicator,
 } from 'react-native';
-import { useTheme } from '../hooks/useTheme';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface PINInputProps {
   /**
@@ -77,7 +77,7 @@ export const PINInput: React.FC<PINInputProps> = ({
   onChange,
   testID = 'pin-input',
 }) => {
-  const theme = useTheme();
+  const { theme } = useTheme();
   const [pin, setPin] = useState('');
   const [shakeAnimation, setShakeAnimation] = useState(false);
   const inputRef = useRef<TextInput>(null);
@@ -117,17 +117,20 @@ export const PINInput: React.FC<PINInputProps> = ({
     // Only allow digits and max 6 characters
     const cleanValue = value.replace(/[^0-9]/g, '').slice(0, 6);
     setPin(cleanValue);
+    console.log('PIN changed:', cleanValue.length, 'digits');
 
     // Notify onChange callback
     onChange?.(cleanValue);
 
     // Auto-submit when 6 digits are entered
     if (cleanValue.length === 6 && autoSubmit) {
+      console.log('Auto-submitting PIN with 6 digits');
       // Dismiss keyboard
       Keyboard.dismiss();
 
       // Small delay for visual feedback
       setTimeout(() => {
+        console.log('Calling onComplete with PIN');
         onComplete(cleanValue);
       }, 100);
     }

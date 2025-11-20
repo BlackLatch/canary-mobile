@@ -4,10 +4,9 @@
  * Screen for unlocking the wallet with PIN when the app is locked
  */
 
-import React, { useState, useContext } from 'react';
+import React, { useState } from 'react';
 import {
   View,
-  SafeAreaView,
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
@@ -15,15 +14,16 @@ import {
   TouchableOpacity,
   Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { PINInput } from '../components/PINInput';
-import { WalletContext } from '../contexts/WalletContext';
-import { useTheme } from '../hooks/useTheme';
+import { useWallet } from '../contexts/WalletContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { pinWalletService } from '../lib/pinWallet';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 export const PINEntryScreen: React.FC = () => {
-  const theme = useTheme();
-  const { unlockWithPin } = useContext(WalletContext);
+  const { theme } = useTheme();
+  const { unlockWithPin, resetWallet } = useWallet();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | undefined>();
   const [attempts, setAttempts] = useState(0);
@@ -90,6 +90,7 @@ export const PINEntryScreen: React.FC = () => {
    * Handle forgot PIN
    */
   const handleForgotPin = () => {
+    console.log('Forgot PIN button pressed');
     Alert.alert(
       'Reset Wallet?',
       'If you forgot your PIN, you must reset your wallet. This will delete your current wallet and you will need to create a new one or import an existing one.\n\nThis action cannot be undone.',
@@ -103,8 +104,10 @@ export const PINEntryScreen: React.FC = () => {
           style: 'destructive',
           onPress: async () => {
             try {
-              await pinWalletService.resetWallet();
-              // WalletContext will handle navigation to login
+              console.log('Resetting wallet...');
+              await resetWallet();
+              console.log('Wallet reset successful');
+              // Navigation will be handled by the context automatically
             } catch (error) {
               console.error('Reset wallet error:', error);
               Alert.alert('Error', 'Failed to reset wallet. Please try again.');

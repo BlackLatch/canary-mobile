@@ -25,20 +25,15 @@ type StorageBackend = 'pinata' | 'ipfs' | 'codex';
 
 const STORAGE_BACKEND_KEY = '@canary:storage_backend';
 const DEBUG_MODE_KEY = '@canary:debug_mode';
-const HEARTBEAT_ENABLED_KEY = '@canary:heartbeat_enabled';
-const HEARTBEAT_CODE_PHRASE_KEY = '@canary:heartbeat_code_phrase';
 
 export const SettingsScreen = () => {
-  const { address, balance, walletType, disconnect } = useWallet();
+  const { address, balance, walletType, lockWallet } = useWallet();
   const { theme, themeMode, setThemeMode } = useTheme();
 
   const [storageBackend, setStorageBackend] = useState<StorageBackend>('pinata');
   const [debugMode, setDebugMode] = useState(false);
-  const [heartbeatEnabled, setHeartbeatEnabled] = useState(false);
-  const [heartbeatCodePhrase, setHeartbeatCodePhrase] = useState('');
   const [showPrivateKeyModal, setShowPrivateKeyModal] = useState(false);
   const [privateKey, setPrivateKey] = useState('');
-  const [showCodePhraseModal, setShowCodePhraseModal] = useState(false);
 
   // Load settings on mount
   React.useEffect(() => {
@@ -47,17 +42,13 @@ export const SettingsScreen = () => {
 
   const loadSettings = async () => {
     try {
-      const [backend, debug, hbEnabled, hbPhrase] = await Promise.all([
+      const [backend, debug] = await Promise.all([
         AsyncStorage.getItem(STORAGE_BACKEND_KEY),
         AsyncStorage.getItem(DEBUG_MODE_KEY),
-        AsyncStorage.getItem(HEARTBEAT_ENABLED_KEY),
-        AsyncStorage.getItem(HEARTBEAT_CODE_PHRASE_KEY),
       ]);
 
       if (backend) setStorageBackend(backend as StorageBackend);
       if (debug) setDebugMode(debug === 'true');
-      if (hbEnabled) setHeartbeatEnabled(hbEnabled === 'true');
-      if (hbPhrase) setHeartbeatCodePhrase(hbPhrase);
     } catch (error) {
       console.error('Failed to load settings:', error);
     }
@@ -93,30 +84,6 @@ export const SettingsScreen = () => {
     }
   };
 
-  const handleHeartbeatToggle = async (value: boolean) => {
-    try {
-      await AsyncStorage.setItem(HEARTBEAT_ENABLED_KEY, value.toString());
-      setHeartbeatEnabled(value);
-
-      if (value && !heartbeatCodePhrase) {
-        // Generate a random code phrase
-        const phrase = generateCodePhrase();
-        setHeartbeatCodePhrase(phrase);
-        await AsyncStorage.setItem(HEARTBEAT_CODE_PHRASE_KEY, phrase);
-      }
-    } catch (error) {
-      console.error('Failed to save heartbeat setting:', error);
-    }
-  };
-
-  const generateCodePhrase = (): string => {
-    const words = ['Alpha', 'Bravo', 'Charlie', 'Delta', 'Echo', 'Foxtrot', 'Golf', 'Hotel'];
-    const phrase = [];
-    for (let i = 0; i < 3; i++) {
-      phrase.push(words[Math.floor(Math.random() * words.length)]);
-    }
-    return phrase.join('-');
-  };
 
   const handleExportPrivateKey = async () => {
     if (walletType !== 'burner') {
@@ -210,20 +177,15 @@ export const SettingsScreen = () => {
 
   const handleDisconnect = () => {
     Alert.alert(
-      'Disconnect Wallet',
-      'Are you sure you want to disconnect your wallet? You can restore it later using your private key.',
+      'Logout',
+      'Are you sure you want to logout? You will need to enter your PIN to log back in.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Disconnect',
+          text: 'Logout',
           style: 'destructive',
-          onPress: async () => {
-            try {
-              await disconnect();
-            } catch (error) {
-              console.error('Failed to disconnect:', error);
-              Alert.alert('Error', 'Failed to disconnect wallet');
-            }
+          onPress: () => {
+            lockWallet();
           },
         },
       ]
@@ -234,14 +196,6 @@ export const SettingsScreen = () => {
     setThemeMode(mode);
   };
 
-  const handleShareCodePhrase = () => {
-    setShowCodePhraseModal(true);
-  };
-
-  const handleCopyCodePhrase = () => {
-    Clipboard.setString(heartbeatCodePhrase);
-    Alert.alert('Copied', 'Code phrase copied to clipboard');
-  };
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
@@ -375,7 +329,7 @@ export const SettingsScreen = () => {
                 onPress={handleDisconnect}
               >
                 <Text style={[styles.menuButtonText, styles.dangerText]}>
-                  Disconnect Wallet
+                  Logout
                 </Text>
                 <Text style={[styles.menuButtonIcon, styles.dangerText]}>
                   ›
@@ -444,61 +398,6 @@ export const SettingsScreen = () => {
               )}
             </TouchableOpacity>
           </View>
-        </View>
-
-        {/* Heartbeat Section */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Heartbeat</Text>
-          <Text style={[styles.sectionDescription, { color: theme.colors.textSecondary }]}>
-            Enable the dead man's switch to automatically release your dossiers if you stop checking in
-          </Text>
-
-          <View style={[styles.card, { backgroundColor: theme.colors.card }]}>
-            <View style={styles.switchRow}>
-              <View style={styles.switchContent}>
-                <Text style={[styles.switchTitle, { color: theme.colors.text }]}>
-                  Enable Heartbeat
-                </Text>
-                <Text style={[styles.switchDescription, { color: theme.colors.textSecondary }]}>
-                  {heartbeatEnabled ? 'Active' : 'Inactive'}
-                </Text>
-              </View>
-              <Switch
-                value={heartbeatEnabled}
-                onValueChange={handleHeartbeatToggle}
-                trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
-                thumbColor="#FFFFFF"
-              />
-            </View>
-          </View>
-
-          {heartbeatEnabled && heartbeatCodePhrase && (
-            <View style={[styles.card, { backgroundColor: theme.colors.card }]}>
-              <Text style={[styles.cardTitle, { color: theme.colors.text }]}>Code Phrase</Text>
-              <Text style={[styles.cardDescription, { color: theme.colors.textSecondary }]}>
-                Share this phrase with trusted contacts to allow them to trigger your dossiers
-              </Text>
-
-              <TouchableOpacity
-                style={[styles.codePhraseButton, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
-                onPress={handleShareCodePhrase}
-              >
-                <Text style={[styles.codePhraseText, { color: theme.colors.text }]}>
-                  {heartbeatCodePhrase}
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.menuButton, { backgroundColor: theme.colors.surface, marginTop: 12 }]}
-                onPress={handleCopyCodePhrase}
-              >
-                <Text style={[styles.menuButtonText, { color: theme.colors.text }]}>
-                  Copy Code Phrase
-                </Text>
-                <Text style={[styles.menuButtonIcon, { color: theme.colors.textSecondary }]}>›</Text>
-              </TouchableOpacity>
-            </View>
-          )}
         </View>
 
         {/* Privacy & Security Section */}
@@ -652,45 +551,6 @@ export const SettingsScreen = () => {
         </View>
       </Modal>
 
-      {/* Code Phrase Modal */}
-      <Modal
-        visible={showCodePhraseModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowCodePhraseModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: theme.colors.card }]}>
-            <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
-              Heartbeat Code Phrase
-            </Text>
-            <Text style={[styles.modalDescription, { color: theme.colors.textSecondary }]}>
-              Share this phrase with trusted contacts who can trigger your dossiers if you're unresponsive
-            </Text>
-
-            <View style={[styles.codePhraseContainer, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-              <Text style={[styles.codePhraseDisplayText, { color: theme.colors.text }]}>
-                {heartbeatCodePhrase}
-              </Text>
-            </View>
-
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.modalButtonSecondary, { borderColor: theme.colors.border }]}
-                onPress={handleCopyCodePhrase}
-              >
-                <Text style={[styles.modalButtonText, { color: theme.colors.text }]}>Copy</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.modalButtonPrimary, { backgroundColor: theme.colors.primary }]}
-                onPress={() => setShowCodePhraseModal(false)}
-              >
-                <Text style={[styles.modalButtonText, { color: '#FFFFFF' }]}>Done</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
     </SafeAreaView>
   );
 };

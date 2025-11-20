@@ -10,7 +10,9 @@ export interface Theme {
   colors: {
     background: string;
     surface: string;
+    surfaceVariant: string;
     primary: string;
+    onPrimary: string;
     text: string;
     textSecondary: string;
     border: string;
@@ -28,7 +30,9 @@ export const lightTheme: Theme = {
   colors: {
     background: '#FFFFFF',      // Clean white background (matches reference app)
     surface: '#FFFFFF',         // White surface (matches reference app)
+    surfaceVariant: '#F3F4F6', // Light gray surface variant
     primary: '#e53e3e',         // Red accent (matches reference app)
+    onPrimary: '#FFFFFF',       // White text on primary color
     text: '#111827',            // Dark text (matches reference app)
     textSecondary: '#6B7280',   // Gray text (matches reference app)
     border: '#E5E7EB',          // Light borders
@@ -46,7 +50,9 @@ export const darkTheme: Theme = {
   colors: {
     background: '#0B0C10',      // Pure black body background (matches reference app)
     surface: '#0a0a0a',         // Very subtle card backgrounds (matches reference app)
+    surfaceVariant: '#1F1F1F', // Dark gray surface variant
     primary: '#e53e3e',         // Red accent (matches reference app)
+    onPrimary: '#FFFFFF',       // White text on primary color
     text: '#E0E0DC',            // Gentle off-white text (matches reference app)
     textSecondary: '#A3A3A3',   // Less important labels (matches reference app)
     border: '#333333',          // Darker borders (matches reference app)

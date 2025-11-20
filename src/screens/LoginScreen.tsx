@@ -9,9 +9,9 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import { useWallet } from '../contexts/WalletContext';
 import { WalletConnectModal } from '../components/WalletConnectModal';
-import { LocalAccountCard } from '../components/LocalAccountCard';
 import { pinWalletService } from '../lib/pinWallet';
 
 export const LoginScreen = ({ navigation }: any) => {
@@ -20,22 +20,34 @@ export const LoginScreen = ({ navigation }: any) => {
   const [localAccount, setLocalAccount] = useState<string | null>(null);
   const [isCheckingAccount, setIsCheckingAccount] = useState(true);
 
-  useEffect(() => {
-    checkForLocalAccount();
-  }, []);
+  // Re-check for local account whenever screen comes into focus
+  // This ensures we update if wallet was reset from another screen
+  useFocusEffect(
+    React.useCallback(() => {
+      checkForLocalAccount();
+    }, [])
+  );
 
   const checkForLocalAccount = async () => {
     try {
+      console.log('🔍 LoginScreen: Checking for local account...');
       // Check for PIN-protected wallet
       const hasWallet = await pinWalletService.hasWallet();
+      console.log('🔍 LoginScreen: hasWallet =', hasWallet);
       if (hasWallet) {
         const address = await pinWalletService.getWalletAddress();
+        console.log('🔍 LoginScreen: wallet address =', address);
         if (address) {
           setLocalAccount(address);
+        } else {
+          setLocalAccount(null);
         }
+      } else {
+        setLocalAccount(null);
       }
     } catch (error) {
-      console.log('No accessible local account found');
+      console.log('🔍 LoginScreen: No accessible local account found', error);
+      setLocalAccount(null);
     } finally {
       setIsCheckingAccount(false);
     }
@@ -51,33 +63,8 @@ export const LoginScreen = ({ navigation }: any) => {
   };
 
   const handleUseLocalAccount = () => {
-    if (!localAccount) return;
-    // The wallet exists but is locked - AuthenticatedApp will show PIN entry screen
-    // Just return to trigger re-render
-  };
-
-  const handleDeleteLocalAccount = () => {
-    Alert.alert(
-      'Delete Local Account',
-      'Are you sure you want to delete your local account? This action cannot be undone. You will need to create a new account or import an existing one.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await pinWalletService.resetWallet();
-              setLocalAccount(null);
-              Alert.alert('Success', 'Local account deleted successfully');
-            } catch (error) {
-              console.error('Failed to delete account:', error);
-              Alert.alert('Error', 'Failed to delete account');
-            }
-          }
-        }
-      ]
-    );
+    // The wallet exists but is locked - AuthenticatedApp will automatically show PIN entry screen
+    // This function doesn't need to do anything
   };
 
   const handleConnectWallet = () => {
@@ -107,21 +94,27 @@ export const LoginScreen = ({ navigation }: any) => {
           </View>
         </View>
 
-        {/* Show existing local account if available */}
+        {/* Show LOG IN button if account exists */}
         {!isCheckingAccount && localAccount && (
           <View style={styles.accountSection}>
-            <LocalAccountCard
-              address={localAccount}
-              onSelect={handleUseLocalAccount}
-              onDelete={handleDeleteLocalAccount}
-              isLoading={isConnecting}
-            />
+            <Text style={styles.welcomeBackText}>Welcome back!</Text>
+            <TouchableOpacity
+              style={styles.primaryButton}
+              onPress={handleUseLocalAccount}
+              disabled={isConnecting}
+            >
+              {isConnecting ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <Text style={styles.primaryButtonText}>LOG IN</Text>
+              )}
+            </TouchableOpacity>
           </View>
         )}
 
         {/* Authentication Buttons */}
         <View style={styles.authSection}>
-          {/* Only show New Local Account if no account exists */}
+          {/* Only show New Account if no account exists */}
           {!localAccount && (
             <TouchableOpacity
               style={styles.primaryButton}
@@ -132,7 +125,7 @@ export const LoginScreen = ({ navigation }: any) => {
                 <ActivityIndicator color="#FFFFFF" />
               ) : (
                 <Text style={styles.primaryButtonText}>
-                  NEW LOCAL ACCOUNT
+                  NEW ACCOUNT
                 </Text>
               )}
             </TouchableOpacity>
@@ -223,6 +216,14 @@ const styles = StyleSheet.create({
     width: '100%',
     paddingHorizontal: 20,
     marginVertical: 20,
+    alignItems: 'center',
+  },
+  welcomeBackText: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#111827',
+    marginBottom: 16,
+    textAlign: 'center',
   },
   authSection: {
     width: '100%',
