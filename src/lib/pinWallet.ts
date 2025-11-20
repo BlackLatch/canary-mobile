@@ -75,19 +75,80 @@ export class PinWalletService {
     const ivBuffer = await RNSimpleCrypto.utils.randomBytes(AES_IV_LENGTH);
     const iv = new Uint8Array(ivBuffer);
 
-    // RNSimpleCrypto.AES.encrypt expects ArrayBuffers and returns an ArrayBuffer (ciphertext)
-    const ciphertextBuffer = await RNSimpleCrypto.AES.encrypt(
-      privateKeyBytes.buffer.slice(privateKeyBytes.byteOffset, privateKeyBytes.byteOffset + privateKeyBytes.byteLength),
-      wrappingKey.buffer.slice(wrappingKey.byteOffset, wrappingKey.byteOffset + wrappingKey.byteLength),
-      iv.buffer.slice(iv.byteOffset, iv.byteOffset + iv.byteLength)
-      // Note: No 'GCM' parameter - the library only supports CBC
-    );
+    // Debug: Check input data before encryption
+    console.log('🔍 Encryption inputs:');
+    console.log('  - Private key bytes length:', privateKeyBytes.length);
+    console.log('  - Wrapping key length:', wrappingKey.length);
+    console.log('  - IV length:', iv.length);
+
+    // Create clean ArrayBuffers for encryption
+    // RNSimpleCrypto expects ArrayBuffers, not Uint8Array views
+    const privateKeyBuffer = new ArrayBuffer(privateKeyBytes.length);
+    const privateKeyView = new Uint8Array(privateKeyBuffer);
+    privateKeyView.set(privateKeyBytes);
+
+    const wrappingKeyBuffer = new ArrayBuffer(wrappingKey.length);
+    const wrappingKeyView = new Uint8Array(wrappingKeyBuffer);
+    wrappingKeyView.set(wrappingKey);
+
+    const ivCleanBuffer = new ArrayBuffer(iv.length);
+    const ivView = new Uint8Array(ivCleanBuffer);
+    ivView.set(iv);
+
+    console.log('🔍 Buffer sizes:');
+    console.log('  - privateKeyBuffer:', privateKeyBuffer.byteLength);
+    console.log('  - wrappingKeyBuffer:', wrappingKeyBuffer.byteLength);
+    console.log('  - ivCleanBuffer:', ivCleanBuffer.byteLength);
+
+    // Try encryption with clean buffers
+    let ciphertextBuffer;
+    try {
+      ciphertextBuffer = await RNSimpleCrypto.AES.encrypt(
+        privateKeyBuffer,
+        wrappingKeyBuffer,
+        ivCleanBuffer
+      );
+
+      console.log('✅ Encryption successful:');
+      console.log('  - Result type:', typeof ciphertextBuffer);
+      console.log('  - Is ArrayBuffer:', ciphertextBuffer instanceof ArrayBuffer);
+      console.log('  - Byte length:', ciphertextBuffer?.byteLength);
+
+      if (!ciphertextBuffer || ciphertextBuffer.byteLength === 0) {
+        throw new Error('Encryption returned empty buffer');
+      }
+    } catch (encryptError) {
+      console.error('❌ Encryption failed:', encryptError);
+      // Try alternative approach - use base64 encoding
+      console.log('🔄 Trying base64 approach...');
+
+      const privateKeyBase64 = RNSimpleCrypto.utils.convertArrayBufferToBase64(privateKeyBuffer);
+      const wrappingKeyBase64 = RNSimpleCrypto.utils.convertArrayBufferToBase64(wrappingKeyBuffer);
+      const ivBase64 = RNSimpleCrypto.utils.convertArrayBufferToBase64(ivCleanBuffer);
+
+      console.log('  - Private key base64 length:', privateKeyBase64.length);
+      console.log('  - Wrapping key base64 length:', wrappingKeyBase64.length);
+      console.log('  - IV base64 length:', ivBase64.length);
+
+      // Convert back and try again
+      const privateKeyBuffer2 = RNSimpleCrypto.utils.convertBase64ToArrayBuffer(privateKeyBase64);
+      const wrappingKeyBuffer2 = RNSimpleCrypto.utils.convertBase64ToArrayBuffer(wrappingKeyBase64);
+      const ivBuffer2 = RNSimpleCrypto.utils.convertBase64ToArrayBuffer(ivBase64);
+
+      ciphertextBuffer = await RNSimpleCrypto.AES.encrypt(
+        privateKeyBuffer2,
+        wrappingKeyBuffer2,
+        ivBuffer2
+      );
+
+      console.log('✅ Base64 approach result:', ciphertextBuffer?.byteLength || 0, 'bytes');
+    }
 
     const ciphertext = new Uint8Array(ciphertextBuffer);
 
     // Step 5: Generate HMAC for authentication
     const hmacKeyBuffer = await RNSimpleCrypto.HMAC.hmac256(
-      wrappingKey.buffer.slice(wrappingKey.byteOffset, wrappingKey.byteOffset + wrappingKey.byteLength),
+      wrappingKeyBuffer,
       ciphertextBuffer
     );
     const hmacTag = new Uint8Array(hmacKeyBuffer);
@@ -149,19 +210,35 @@ export class PinWalletService {
     const ivBuffer = await RNSimpleCrypto.utils.randomBytes(AES_IV_LENGTH);
     const iv = new Uint8Array(ivBuffer);
 
-    // RNSimpleCrypto.AES.encrypt expects ArrayBuffers and returns an ArrayBuffer (ciphertext)
+    // Create clean ArrayBuffers for encryption (same as in createPinProtectedWallet)
+    const privateKeyBuffer = new ArrayBuffer(privateKeyBytes.length);
+    const privateKeyView = new Uint8Array(privateKeyBuffer);
+    privateKeyView.set(privateKeyBytes);
+
+    const wrappingKeyBuffer = new ArrayBuffer(wrappingKey.length);
+    const wrappingKeyView = new Uint8Array(wrappingKeyBuffer);
+    wrappingKeyView.set(wrappingKey);
+
+    const ivCleanBuffer = new ArrayBuffer(iv.length);
+    const ivView = new Uint8Array(ivCleanBuffer);
+    ivView.set(iv);
+
+    // Encrypt with clean buffers
     const ciphertextBuffer = await RNSimpleCrypto.AES.encrypt(
-      privateKeyBytes.buffer.slice(privateKeyBytes.byteOffset, privateKeyBytes.byteOffset + privateKeyBytes.byteLength),
-      wrappingKey.buffer.slice(wrappingKey.byteOffset, wrappingKey.byteOffset + wrappingKey.byteLength),
-      iv.buffer.slice(iv.byteOffset, iv.byteOffset + iv.byteLength)
-      // Note: No 'GCM' parameter - the library only supports CBC
+      privateKeyBuffer,
+      wrappingKeyBuffer,
+      ivCleanBuffer
     );
+
+    if (!ciphertextBuffer || ciphertextBuffer.byteLength === 0) {
+      throw new Error('Encryption failed - empty buffer returned');
+    }
 
     const ciphertext = new Uint8Array(ciphertextBuffer);
 
     // Step 4: Generate HMAC for authentication
     const hmacKeyBuffer = await RNSimpleCrypto.HMAC.hmac256(
-      wrappingKey.buffer.slice(wrappingKey.byteOffset, wrappingKey.byteOffset + wrappingKey.byteLength),
+      wrappingKeyBuffer,
       ciphertextBuffer
     );
     const hmacTag = new Uint8Array(hmacKeyBuffer);
@@ -215,9 +292,21 @@ export class PinWalletService {
 
     // Step 4: Verify HMAC before decrypting (authenticate-then-decrypt)
     try {
-      const ciphertextBuffer = ciphertext.buffer.slice(ciphertext.byteOffset, ciphertext.byteOffset + ciphertext.byteLength);
+      // Create clean buffers for HMAC verification and decryption
+      const ciphertextBuffer = new ArrayBuffer(ciphertext.length);
+      const ciphertextView = new Uint8Array(ciphertextBuffer);
+      ciphertextView.set(ciphertext);
+
+      const wrappingKeyBuffer = new ArrayBuffer(wrappingKey.length);
+      const wrappingKeyView = new Uint8Array(wrappingKeyBuffer);
+      wrappingKeyView.set(wrappingKey);
+
+      const ivBuffer = new ArrayBuffer(iv.length);
+      const ivView = new Uint8Array(ivBuffer);
+      ivView.set(iv);
+
       const expectedHmacBuffer = await RNSimpleCrypto.HMAC.hmac256(
-        wrappingKey.buffer.slice(wrappingKey.byteOffset, wrappingKey.byteOffset + wrappingKey.byteLength),
+        wrappingKeyBuffer,
         ciphertextBuffer
       );
       const expectedHmac = new Uint8Array(expectedHmacBuffer);
@@ -237,9 +326,8 @@ export class PinWalletService {
       // Step 5: Decrypt private key using AES-128-CBC
       const decryptedBuffer = await RNSimpleCrypto.AES.decrypt(
         ciphertextBuffer,
-        wrappingKey.buffer.slice(wrappingKey.byteOffset, wrappingKey.byteOffset + wrappingKey.byteLength),
-        iv.buffer.slice(iv.byteOffset, iv.byteOffset + iv.byteLength)
-        // Note: No 'GCM' parameter - the library only supports CBC
+        wrappingKeyBuffer,
+        ivBuffer
       );
       const decrypted = new Uint8Array(decryptedBuffer);
 
