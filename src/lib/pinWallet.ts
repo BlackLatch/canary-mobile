@@ -75,12 +75,6 @@ export class PinWalletService {
     const ivBuffer = await RNSimpleCrypto.utils.randomBytes(AES_IV_LENGTH);
     const iv = new Uint8Array(ivBuffer);
 
-    // Debug: Check input data before encryption
-    console.log('🔍 Encryption inputs:');
-    console.log('  - Private key bytes length:', privateKeyBytes.length);
-    console.log('  - Wrapping key length:', wrappingKey.length);
-    console.log('  - IV length:', iv.length);
-
     // Create clean ArrayBuffers for encryption
     // RNSimpleCrypto expects ArrayBuffers, not Uint8Array views
     const privateKeyBuffer = new ArrayBuffer(privateKeyBytes.length);
@@ -95,53 +89,16 @@ export class PinWalletService {
     const ivView = new Uint8Array(ivCleanBuffer);
     ivView.set(iv);
 
-    console.log('🔍 Buffer sizes:');
-    console.log('  - privateKeyBuffer:', privateKeyBuffer.byteLength);
-    console.log('  - wrappingKeyBuffer:', wrappingKeyBuffer.byteLength);
-    console.log('  - ivCleanBuffer:', ivCleanBuffer.byteLength);
+    // Encrypt with clean buffers
+    const ciphertextBuffer = await RNSimpleCrypto.AES.encrypt(
+      privateKeyBuffer,
+      wrappingKeyBuffer,
+      ivCleanBuffer
+    );
 
-    // Try encryption with clean buffers
-    let ciphertextBuffer;
-    try {
-      ciphertextBuffer = await RNSimpleCrypto.AES.encrypt(
-        privateKeyBuffer,
-        wrappingKeyBuffer,
-        ivCleanBuffer
-      );
-
-      console.log('✅ Encryption successful:');
-      console.log('  - Result type:', typeof ciphertextBuffer);
-      console.log('  - Is ArrayBuffer:', ciphertextBuffer instanceof ArrayBuffer);
-      console.log('  - Byte length:', ciphertextBuffer?.byteLength);
-
-      if (!ciphertextBuffer || ciphertextBuffer.byteLength === 0) {
-        throw new Error('Encryption returned empty buffer');
-      }
-    } catch (encryptError) {
-      console.error('❌ Encryption failed:', encryptError);
-      // Try alternative approach - use base64 encoding
-      console.log('🔄 Trying base64 approach...');
-
-      const privateKeyBase64 = RNSimpleCrypto.utils.convertArrayBufferToBase64(privateKeyBuffer);
-      const wrappingKeyBase64 = RNSimpleCrypto.utils.convertArrayBufferToBase64(wrappingKeyBuffer);
-      const ivBase64 = RNSimpleCrypto.utils.convertArrayBufferToBase64(ivCleanBuffer);
-
-      console.log('  - Private key base64 length:', privateKeyBase64.length);
-      console.log('  - Wrapping key base64 length:', wrappingKeyBase64.length);
-      console.log('  - IV base64 length:', ivBase64.length);
-
-      // Convert back and try again
-      const privateKeyBuffer2 = RNSimpleCrypto.utils.convertBase64ToArrayBuffer(privateKeyBase64);
-      const wrappingKeyBuffer2 = RNSimpleCrypto.utils.convertBase64ToArrayBuffer(wrappingKeyBase64);
-      const ivBuffer2 = RNSimpleCrypto.utils.convertBase64ToArrayBuffer(ivBase64);
-
-      ciphertextBuffer = await RNSimpleCrypto.AES.encrypt(
-        privateKeyBuffer2,
-        wrappingKeyBuffer2,
-        ivBuffer2
-      );
-
-      console.log('✅ Base64 approach result:', ciphertextBuffer?.byteLength || 0, 'bytes');
+    // Check if encryption succeeded - ArrayBuffer should have a byteLength > 0
+    if (!ciphertextBuffer || !(ciphertextBuffer instanceof ArrayBuffer) || !ciphertextBuffer.byteLength) {
+      throw new Error('Encryption failed - invalid result');
     }
 
     const ciphertext = new Uint8Array(ciphertextBuffer);
@@ -230,8 +187,9 @@ export class PinWalletService {
       ivCleanBuffer
     );
 
-    if (!ciphertextBuffer || ciphertextBuffer.byteLength === 0) {
-      throw new Error('Encryption failed - empty buffer returned');
+    // Check if encryption succeeded - ArrayBuffer should have a byteLength > 0
+    if (!ciphertextBuffer || !(ciphertextBuffer instanceof ArrayBuffer) || !ciphertextBuffer.byteLength) {
+      throw new Error('Encryption failed - invalid result');
     }
 
     const ciphertext = new Uint8Array(ciphertextBuffer);
@@ -329,6 +287,12 @@ export class PinWalletService {
         wrappingKeyBuffer,
         ivBuffer
       );
+
+      // Verify decryption result
+      if (!decryptedBuffer || !(decryptedBuffer instanceof ArrayBuffer) || !decryptedBuffer.byteLength) {
+        throw new Error('Decryption failed - invalid result');
+      }
+
       const decrypted = new Uint8Array(decryptedBuffer);
 
       // Step 6: Create wallet from decrypted private key
