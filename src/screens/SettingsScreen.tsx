@@ -185,7 +185,6 @@ export const SettingsScreen = () => {
           text: 'Lock',
           onPress: () => {
             lockWallet();
-            Alert.alert('Locked', 'Your wallet is locked. Enter your PIN to unlock.');
           },
         },
         {
