@@ -24,14 +24,12 @@ import type { ThemeMode } from '../contexts/ThemeContext';
 type StorageBackend = 'pinata' | 'ipfs' | 'codex';
 
 const STORAGE_BACKEND_KEY = '@canary:storage_backend';
-const DEBUG_MODE_KEY = '@canary:debug_mode';
 
 export const SettingsScreen = () => {
   const { address, balance, walletType, lockWallet, resetWallet, disconnect, switchAccount } = useWallet();
   const { theme, themeMode, setThemeMode } = useTheme();
 
   const [storageBackend, setStorageBackend] = useState<StorageBackend>('pinata');
-  const [debugMode, setDebugMode] = useState(false);
   const [showPrivateKeyModal, setShowPrivateKeyModal] = useState(false);
   const [privateKey, setPrivateKey] = useState('');
 
@@ -42,13 +40,8 @@ export const SettingsScreen = () => {
 
   const loadSettings = async () => {
     try {
-      const [backend, debug] = await Promise.all([
-        AsyncStorage.getItem(STORAGE_BACKEND_KEY),
-        AsyncStorage.getItem(DEBUG_MODE_KEY),
-      ]);
-
+      const backend = await AsyncStorage.getItem(STORAGE_BACKEND_KEY);
       if (backend) setStorageBackend(backend as StorageBackend);
-      if (debug) setDebugMode(debug === 'true');
     } catch (error) {
       console.error('Failed to load settings:', error);
     }
@@ -74,16 +67,6 @@ export const SettingsScreen = () => {
       Alert.alert('Error', 'Failed to save storage backend');
     }
   };
-
-  const handleDebugModeToggle = async (value: boolean) => {
-    try {
-      await AsyncStorage.setItem(DEBUG_MODE_KEY, value.toString());
-      setDebugMode(value);
-    } catch (error) {
-      console.error('Failed to save debug mode:', error);
-    }
-  };
-
 
   const handleExportPrivateKey = async () => {
     if (walletType !== 'burner') {
@@ -473,25 +456,6 @@ export const SettingsScreen = () => {
         {/* Advanced Section */}
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Advanced</Text>
-
-          <View style={[styles.card, { backgroundColor: theme.colors.card }]}>
-            <View style={styles.switchRow}>
-              <View style={styles.switchContent}>
-                <Text style={[styles.switchTitle, { color: theme.colors.text }]}>
-                  Debug Mode
-                </Text>
-                <Text style={[styles.switchDescription, { color: theme.colors.textSecondary }]}>
-                  Enable verbose logging
-                </Text>
-              </View>
-              <Switch
-                value={debugMode}
-                onValueChange={handleDebugModeToggle}
-                trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
-                thumbColor="#FFFFFF"
-              />
-            </View>
-          </View>
 
           <View style={[styles.card, { backgroundColor: theme.colors.card }]}>
             <Text style={[styles.cardTitle, { color: theme.colors.text }]}>Contract Information</Text>

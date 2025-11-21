@@ -23,7 +23,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 export const PINEntryScreen: React.FC = () => {
   const { theme } = useTheme();
-  const { unlockWithPin, switchAccount } = useWallet();
+  const { unlockWithPin, switchAccount, resetWallet } = useWallet();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | undefined>();
   const [attempts, setAttempts] = useState(0);
