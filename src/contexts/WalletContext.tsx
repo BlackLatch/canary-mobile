@@ -25,6 +25,7 @@ interface WalletContextState {
   isConnecting: boolean;
   isLoading: boolean;
   isLocked: boolean;
+  showAccountSwitcher: boolean;  // Added to track when user wants to switch accounts
 
   // PIN-protected wallet methods
   createPinProtectedWallet: (pin: string) => Promise<void>;
@@ -33,6 +34,8 @@ interface WalletContextState {
   lockWallet: () => void;
   changePin: (currentPin: string, newPin: string) => Promise<void>;
   resetWallet: () => Promise<void>;
+  switchAccount: () => void;  // Added to handle account switching without deleting wallet
+  cancelAccountSwitch: () => void;  // Cancel switch and go back to PIN entry
 
   // Legacy methods (will be updated to use PIN)
   connectBurnerWallet: (password?: string) => Promise<void>;
@@ -64,6 +67,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [isLocked, setIsLocked] = useState(false);
   const [balance, setBalance] = useState<ethers.BigNumber | null>(null);
+  const [showAccountSwitcher, setShowAccountSwitcher] = useState(false);
 
   // In-memory wallet instance (cleared when locked)
   const walletRef = useRef<ethers.Wallet | null>(null);
@@ -220,6 +224,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
       walletRef.current = wallet;
 
       setIsLocked(false);
+      setShowAccountSwitcher(false);  // Reset switcher flag when unlocking
 
       // Start session manager
       sessionManager.start();
@@ -262,6 +267,29 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
       console.error('❌ Failed to change PIN:', error);
       throw error;
     }
+  };
+
+  /**
+   * Switch to a different account (show login options without deleting wallet)
+   */
+  const switchAccount = () => {
+    console.log('🔄 Switching account...');
+
+    // Lock the wallet (clear memory but keep storage)
+    lockWallet();
+
+    // Set flag to show login screen instead of PIN screen
+    setShowAccountSwitcher(true);
+
+    console.log('✅ Ready to switch accounts');
+  };
+
+  /**
+   * Cancel account switch (go back to PIN entry)
+   */
+  const cancelAccountSwitch = () => {
+    console.log('🔙 Canceling account switch...');
+    setShowAccountSwitcher(false);
   };
 
   /**
@@ -516,6 +544,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     isConnecting,
     isLoading,
     isLocked,
+    showAccountSwitcher,
     // PIN-protected wallet methods
     createPinProtectedWallet,
     importWalletWithPin,
@@ -523,6 +552,8 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     lockWallet,
     changePin,
     resetWallet,
+    switchAccount,
+    cancelAccountSwitch,
     // Legacy methods
     connectBurnerWallet,
     connectWalletConnect,

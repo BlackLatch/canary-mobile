@@ -23,7 +23,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 export const PINEntryScreen: React.FC = () => {
   const { theme } = useTheme();
-  const { unlockWithPin, resetWallet } = useWallet();
+  const { unlockWithPin, switchAccount } = useWallet();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | undefined>();
   const [attempts, setAttempts] = useState(0);
@@ -161,26 +161,7 @@ export const PINEntryScreen: React.FC = () => {
 
             <TouchableOpacity
               style={styles.linkButton}
-              onPress={() => {
-                Alert.alert(
-                  'Switch Account',
-                  'This will log you out completely and return to the login screen. You can choose a different authentication method.',
-                  [
-                    { text: 'Cancel', style: 'cancel' },
-                    {
-                      text: 'Continue',
-                      style: 'destructive',
-                      onPress: async () => {
-                        try {
-                          await resetWallet();
-                        } catch (error) {
-                          Alert.alert('Error', 'Failed to switch account');
-                        }
-                      },
-                    },
-                  ]
-                );
-              }}
+              onPress={() => switchAccount()}
               disabled={loading}
             >
               <Text style={[styles.forgotText, { color: theme.colors.textSecondary }]}>

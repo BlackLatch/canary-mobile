@@ -278,7 +278,7 @@ export const CreatePINScreen: React.FC<CreatePINScreenProps> = ({ navigation, ro
           <View style={[styles.loadingCard, { backgroundColor: theme.colors.surface }]}>
             <ActivityIndicator size="large" color={theme.colors.primary} />
             <Text style={[styles.loadingText, { color: theme.colors.text }]}>
-              {mode === 'create' ? 'Creating your wallet...' : 'Importing your wallet...'}
+              {mode === 'create' ? 'Creating your account...' : 'Importing your account...'}
             </Text>
             <Text style={[styles.loadingSubtext, { color: theme.colors.textSecondary }]}>
               This may take a few seconds

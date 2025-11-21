@@ -15,7 +15,7 @@ import { WalletConnectModal } from '../components/WalletConnectModal';
 import { pinWalletService } from '../lib/pinWallet';
 
 export const LoginScreen = ({ navigation }: any) => {
-  const { isConnecting } = useWallet();
+  const { isConnecting, cancelAccountSwitch } = useWallet();
   const [showWalletModal, setShowWalletModal] = useState(false);
   const [localAccount, setLocalAccount] = useState<string | null>(null);
   const [isCheckingAccount, setIsCheckingAccount] = useState(true);
@@ -59,12 +59,27 @@ export const LoginScreen = ({ navigation }: any) => {
   };
 
   const handleImportAccount = () => {
-    navigation.navigate('ImportAccount');
+    if (localAccount) {
+      Alert.alert(
+        'Replace Current Wallet?',
+        'Importing a new account will replace your current wallet on this device. Make sure you have backed up your current wallet\'s seed phrase or private key before proceeding.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Continue',
+            style: 'destructive',
+            onPress: () => navigation.navigate('ImportAccount'),
+          },
+        ]
+      );
+    } else {
+      navigation.navigate('ImportAccount');
+    }
   };
 
   const handleUseLocalAccount = () => {
-    // The wallet exists but is locked - AuthenticatedApp will automatically show PIN entry screen
-    // This function doesn't need to do anything
+    // Cancel the account switch to show PIN entry screen
+    cancelAccountSwitch();
   };
 
   const handleConnectWallet = () => {
@@ -94,10 +109,10 @@ export const LoginScreen = ({ navigation }: any) => {
           </View>
         </View>
 
-        {/* Show LOG IN button if account exists */}
-        {!isCheckingAccount && localAccount && (
-          <View style={styles.accountSection}>
-            <Text style={styles.welcomeBackText}>Welcome back!</Text>
+        {/* Authentication Buttons */}
+        <View style={styles.authSection}>
+          {/* Show LOG IN button if account exists */}
+          {!isCheckingAccount && localAccount && (
             <TouchableOpacity
               style={styles.primaryButton}
               onPress={handleUseLocalAccount}
@@ -109,38 +124,8 @@ export const LoginScreen = ({ navigation }: any) => {
                 <Text style={styles.primaryButtonText}>LOG IN</Text>
               )}
             </TouchableOpacity>
+          )}
 
-            <TouchableOpacity
-              style={styles.switchAccountLink}
-              onPress={async () => {
-                Alert.alert(
-                  'Use Different Account',
-                  'This will remove the current account from this device. You\'ll need to set it up again if you want to use it later.',
-                  [
-                    { text: 'Cancel', style: 'cancel' },
-                    {
-                      text: 'Continue',
-                      style: 'destructive',
-                      onPress: async () => {
-                        try {
-                          await pinWalletService.resetWallet();
-                          setLocalAccount(null);
-                        } catch (error) {
-                          Alert.alert('Error', 'Failed to reset account');
-                        }
-                      },
-                    },
-                  ]
-                );
-              }}
-            >
-              <Text style={styles.switchAccountText}>Use different account</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {/* Authentication Buttons */}
-        <View style={styles.authSection}>
           {/* Only show New Account if no account exists */}
           {!localAccount && (
             <TouchableOpacity
@@ -239,19 +224,6 @@ const styles = StyleSheet.create({
     color: '#E53935',
     fontWeight: '600',
   },
-  accountSection: {
-    width: '100%',
-    paddingHorizontal: 20,
-    marginVertical: 20,
-    alignItems: 'center',
-  },
-  welcomeBackText: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: 16,
-    textAlign: 'center',
-  },
   authSection: {
     width: '100%',
     alignItems: 'center',
@@ -299,15 +271,5 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#9CA3AF',
     textAlign: 'center',
-  },
-  switchAccountLink: {
-    marginTop: 16,
-    padding: 8,
-  },
-  switchAccountText: {
-    fontSize: 14,
-    color: '#6B7280',
-    textAlign: 'center',
-    textDecorationLine: 'underline',
   },
 });

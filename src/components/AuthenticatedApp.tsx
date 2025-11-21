@@ -28,7 +28,7 @@ const UnauthenticatedNavigator = () => {
 };
 
 export const AuthenticatedApp = () => {
-  const { address, isLoading, isLocked } = useWallet();
+  const { address, isLoading, isLocked, showAccountSwitcher } = useWallet();
 
   if (isLoading) {
     return (
@@ -45,8 +45,8 @@ export const AuthenticatedApp = () => {
     );
   }
 
-  // Show unauthenticated navigator if no wallet is connected
-  if (!address) {
+  // Show unauthenticated navigator if no wallet is connected OR user wants to switch accounts
+  if (!address || showAccountSwitcher) {
     return <UnauthenticatedNavigator />;
   }
 
