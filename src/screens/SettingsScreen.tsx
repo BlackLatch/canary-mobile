@@ -27,7 +27,7 @@ const STORAGE_BACKEND_KEY = '@canary:storage_backend';
 const DEBUG_MODE_KEY = '@canary:debug_mode';
 
 export const SettingsScreen = () => {
-  const { address, balance, walletType, lockWallet } = useWallet();
+  const { address, balance, walletType, lockWallet, resetWallet, disconnect } = useWallet();
   const { theme, themeMode, setThemeMode } = useTheme();
 
   const [storageBackend, setStorageBackend] = useState<StorageBackend>('pinata');
@@ -177,15 +177,39 @@ export const SettingsScreen = () => {
 
   const handleDisconnect = () => {
     Alert.alert(
-      'Logout',
-      'Are you sure you want to logout? You will need to enter your PIN to log back in.',
+      'Logout Options',
+      'Choose how you want to logout:',
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Logout',
-          style: 'destructive',
+          text: 'Lock',
           onPress: () => {
             lockWallet();
+            Alert.alert('Locked', 'Your wallet is locked. Enter your PIN to unlock.');
+          },
+        },
+        {
+          text: 'Switch Account',
+          style: 'destructive',
+          onPress: async () => {
+            Alert.alert(
+              'Switch Account',
+              'This will log you out completely and return to the login screen. You can choose a different authentication method.',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Continue',
+                  style: 'destructive',
+                  onPress: async () => {
+                    try {
+                      await resetWallet();
+                    } catch (error) {
+                      Alert.alert('Error', 'Failed to switch account');
+                    }
+                  },
+                },
+              ]
+            );
           },
         },
       ]

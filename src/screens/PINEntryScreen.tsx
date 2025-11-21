@@ -145,16 +145,49 @@ export const PINEntryScreen: React.FC = () => {
             testID="pin-entry"
           />
 
-          {/* Forgot PIN */}
-          <TouchableOpacity
-            style={styles.forgotButton}
-            onPress={handleForgotPin}
-            disabled={loading}
-          >
-            <Text style={[styles.forgotText, { color: theme.colors.textSecondary }]}>
-              Forgot PIN?
-            </Text>
-          </TouchableOpacity>
+          {/* Forgot PIN and Switch Account */}
+          <View style={styles.bottomLinks}>
+            <TouchableOpacity
+              style={styles.linkButton}
+              onPress={handleForgotPin}
+              disabled={loading}
+            >
+              <Text style={[styles.forgotText, { color: theme.colors.textSecondary }]}>
+                Forgot PIN?
+              </Text>
+            </TouchableOpacity>
+
+            <Text style={[styles.linkSeparator, { color: theme.colors.textSecondary }]}>•</Text>
+
+            <TouchableOpacity
+              style={styles.linkButton}
+              onPress={() => {
+                Alert.alert(
+                  'Switch Account',
+                  'This will log you out completely and return to the login screen. You can choose a different authentication method.',
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                      text: 'Continue',
+                      style: 'destructive',
+                      onPress: async () => {
+                        try {
+                          await resetWallet();
+                        } catch (error) {
+                          Alert.alert('Error', 'Failed to switch account');
+                        }
+                      },
+                    },
+                  ]
+                );
+              }}
+              disabled={loading}
+            >
+              <Text style={[styles.forgotText, { color: theme.colors.textSecondary }]}>
+                Switch Account
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -188,12 +221,21 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
     marginBottom: 48,
   },
-  forgotButton: {
-    marginTop: 32,
+  linkButton: {
     padding: 12,
   },
   forgotText: {
     fontSize: 14,
     textDecorationLine: 'underline',
+  },
+  bottomLinks: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 32,
+  },
+  linkSeparator: {
+    marginHorizontal: 12,
+    fontSize: 14,
   },
 });

@@ -109,6 +109,33 @@ export const LoginScreen = ({ navigation }: any) => {
                 <Text style={styles.primaryButtonText}>LOG IN</Text>
               )}
             </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.switchAccountLink}
+              onPress={async () => {
+                Alert.alert(
+                  'Use Different Account',
+                  'This will remove the current account from this device. You\'ll need to set it up again if you want to use it later.',
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                      text: 'Continue',
+                      style: 'destructive',
+                      onPress: async () => {
+                        try {
+                          await pinWalletService.resetWallet();
+                          setLocalAccount(null);
+                        } catch (error) {
+                          Alert.alert('Error', 'Failed to reset account');
+                        }
+                      },
+                    },
+                  ]
+                );
+              }}
+            >
+              <Text style={styles.switchAccountText}>Use different account</Text>
+            </TouchableOpacity>
           </View>
         )}
 
@@ -272,5 +299,15 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#9CA3AF',
     textAlign: 'center',
+  },
+  switchAccountLink: {
+    marginTop: 16,
+    padding: 8,
+  },
+  switchAccountText: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
+    textDecorationLine: 'underline',
   },
 });
