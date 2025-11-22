@@ -152,7 +152,12 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
       const { wallet, address: walletAddress } = await pinWalletService.createPinProtectedWallet(pin);
 
       // Store wallet type preference
-      await AsyncStorage.setItem(WALLET_TYPE_KEY, 'burner');
+      try {
+        await AsyncStorage.setItem(WALLET_TYPE_KEY, 'burner');
+      } catch (storageError) {
+        console.error('Failed to save wallet type preference:', storageError);
+        // Don't fail the entire operation if AsyncStorage fails
+      }
 
       // Store wallet instance (already unlocked from creation)
       walletRef.current = wallet;
@@ -188,7 +193,12 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
       const { wallet, address: walletAddress } = await pinWalletService.importWalletWithPin(privateKey, pin);
 
       // Store wallet type preference
-      await AsyncStorage.setItem(WALLET_TYPE_KEY, 'burner');
+      try {
+        await AsyncStorage.setItem(WALLET_TYPE_KEY, 'burner');
+      } catch (storageError) {
+        console.error('Failed to save wallet type preference:', storageError);
+        // Don't fail the entire operation if AsyncStorage fails
+      }
 
       // Store wallet instance (already unlocked from import)
       walletRef.current = wallet;

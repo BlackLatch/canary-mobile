@@ -20,7 +20,7 @@ import 'react-native-get-random-values';
 const CANARY_ETH_KEY_BUNDLE = 'canary_eth_key_bundle';
 
 // PBKDF2 configuration (tuned for mobile performance)
-const PBKDF2_ITERATIONS = 150000; // Adjust between 150,000-300,000 based on performance
+const PBKDF2_ITERATIONS = 100000; // Reduced from 150,000 for better performance on mobile
 const PBKDF2_KEY_LENGTH = 32; // 256 bits for AES-256
 const PBKDF2_HASH = 'SHA256';
 
@@ -429,19 +429,25 @@ export class PinWalletService {
    * Stores encrypted bundle in secure storage
    */
   private async storeBundle(bundle: EncryptedKeyBundle): Promise<void> {
-    const bundleJson = JSON.stringify(bundle);
+    try {
+      const bundleJson = JSON.stringify(bundle);
 
-    await Keychain.setGenericPassword(
-      bundle.ethAddress, // username
-      bundleJson, // password
-      {
-        service: CANARY_ETH_KEY_BUNDLE,
-        accessible: Keychain.ACCESSIBLE.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
-        // Use SECURE_SOFTWARE for simulator compatibility
-        // On real devices with secure hardware, it will automatically use the best available
-        securityLevel: Keychain.SECURITY_LEVEL.SECURE_SOFTWARE,
-      }
-    );
+      await Keychain.setGenericPassword(
+        bundle.ethAddress, // username
+        bundleJson, // password
+        {
+          service: CANARY_ETH_KEY_BUNDLE,
+          accessible: Keychain.ACCESSIBLE.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
+          // Use SECURE_SOFTWARE for simulator compatibility
+          // On real devices with secure hardware, it will automatically use the best available
+          securityLevel: Keychain.SECURITY_LEVEL.SECURE_SOFTWARE,
+        }
+      );
+    } catch (error) {
+      console.error('Failed to store bundle in keychain:', error);
+      // Throw a more user-friendly error
+      throw new Error('Failed to securely store wallet. Please try again.');
+    }
   }
 
   /**
@@ -457,7 +463,9 @@ export class PinWalletService {
       }
       const bundle = JSON.parse(credentials.password) as EncryptedKeyBundle;
       return bundle;
-    } catch {
+    } catch (error) {
+      console.error('Failed to load bundle from keychain:', error);
+      // Return null instead of throwing to allow graceful handling
       return null;
     }
   }

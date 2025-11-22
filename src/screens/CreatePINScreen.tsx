@@ -116,7 +116,11 @@ export const CreatePINScreen: React.FC<CreatePINScreenProps> = ({ navigation, ro
       // Success - wallet is created and unlocked
       // Navigation will be handled by AuthenticatedApp
       console.log('Success - wallet operation complete');
-      // Note: Loading state should be cleared by navigation
+
+      // Clear loading state after successful creation
+      // This is critical to prevent the app from hanging with loading modal
+      setLoading(false);
+      setError(undefined);
     } catch (err: any) {
       console.error('PIN creation error:', err);
       setError(err.message || 'Failed to create PIN. Please try again.');
