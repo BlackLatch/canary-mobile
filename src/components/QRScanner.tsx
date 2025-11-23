@@ -6,8 +6,8 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Modal, Alert } from 'react-native';
-import { Camera, useCameraDevice, useCodeScanner } from 'react-native-vision-camera';
+import { View, Text, StyleSheet, TouchableOpacity, Modal, Alert, ActivityIndicator } from 'react-native';
+import { Camera, useCameraDevice, useCodeScanner, useCameraPermission } from 'react-native-vision-camera';
 import { useTheme } from '../contexts/ThemeContext';
 import Icon from 'react-native-vector-icons/Feather';
 
@@ -19,18 +19,30 @@ interface QRScannerProps {
 
 export const QRScanner: React.FC<QRScannerProps> = ({ visible, onClose, onScan }) => {
   const { theme } = useTheme();
-  const [hasPermission, setHasPermission] = useState(false);
+  const { hasPermission, requestPermission } = useCameraPermission();
   const device = useCameraDevice('back');
+  const [isInitializing, setIsInitializing] = useState(false);
 
   useEffect(() => {
     if (visible) {
-      requestCameraPermission();
+      checkAndRequestPermission();
     }
   }, [visible]);
 
-  const requestCameraPermission = async () => {
-    const permission = await Camera.requestCameraPermission();
-    setHasPermission(permission === 'granted');
+  const checkAndRequestPermission = async () => {
+    if (!hasPermission) {
+      setIsInitializing(true);
+      const granted = await requestPermission();
+      if (granted) {
+        // Add a small delay to allow camera device to initialize
+        // after permission is granted for the first time
+        setTimeout(() => {
+          setIsInitializing(false);
+        }, 300);
+      } else {
+        setIsInitializing(false);
+      }
+    }
   };
 
   const validateEthereumAddress = (address: string): boolean => {
@@ -88,7 +100,7 @@ export const QRScanner: React.FC<QRScannerProps> = ({ visible, onClose, onScan }
             </Text>
             <TouchableOpacity
               style={[styles.permissionButton, { backgroundColor: theme.colors.primary }]}
-              onPress={requestCameraPermission}
+              onPress={checkAndRequestPermission}
             >
               <Text style={styles.permissionButtonText}>Grant Permission</Text>
             </TouchableOpacity>
@@ -98,6 +110,30 @@ export const QRScanner: React.FC<QRScannerProps> = ({ visible, onClose, onScan }
             >
               <Text style={[styles.cancelButtonText, { color: theme.colors.text }]}>Cancel</Text>
             </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    );
+  }
+
+  // Show loading state while camera is initializing after permission grant
+  if (isInitializing || (hasPermission && !device)) {
+    return (
+      <Modal
+        visible={visible}
+        transparent
+        animationType="slide"
+        onRequestClose={onClose}
+      >
+        <View style={styles.permissionContainer}>
+          <View style={[styles.permissionContent, { backgroundColor: theme.colors.card }]}>
+            <ActivityIndicator size="large" color={theme.colors.primary} />
+            <Text style={[styles.permissionTitle, { color: theme.colors.text }]}>
+              Initializing Camera...
+            </Text>
+            <Text style={[styles.permissionText, { color: theme.colors.textSecondary }]}>
+              Please wait a moment
+            </Text>
           </View>
         </View>
       </Modal>
