@@ -39,6 +39,8 @@
 	<string>Canary needs access to your microphone to record voice messages for your dossier.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Canary needs access to your photo library to select photos for your dossier.</string>
+	<key>NSUserNotificationsUsageDescription</key>
+	<string>Canary needs notification access to remind you about check-in deadlines to keep your dossiers secure.</string>
 	<key>RCTNewArchEnabled</key>
 	<true/>
 	<key>UIAppFonts</key>
@@ -49,6 +51,7 @@
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>fetch</string>
+		<string>remote-notification</string>
 	</array>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
