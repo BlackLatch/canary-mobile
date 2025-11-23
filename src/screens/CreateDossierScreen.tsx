@@ -22,6 +22,7 @@ import { MediaRecorder } from '../components/MediaRecorder';
 import { ErrorDialog } from '../components/ErrorDialog';
 import { SuccessDialog } from '../components/SuccessDialog';
 import { FileViewer } from '../components/FileViewer';
+import { QRScanner } from '../components/QRScanner';
 import DocumentPicker from 'react-native-document-picker';
 import { launchImageLibrary } from 'react-native-image-picker';
 
@@ -82,6 +83,11 @@ export const CreateDossierScreen = () => {
   const [recordingMode, setRecordingMode] = useState<RecordingMode>(null);
   const [uploadedFiles, setUploadedFiles] = useState<Array<{ uri: string; name: string; type: string; size: number }>>([]);
   const [viewingFile, setViewingFile] = useState<{ uri: string; name: string; type: string } | null>(null);
+
+  // QR Scanner state
+  const [showQRScanner, setShowQRScanner] = useState(false);
+  const [scanningForGuardian, setScanningForGuardian] = useState<number | null>(null);
+  const [scanningForRecipient, setScanningForRecipient] = useState<number | null>(null);
 
   // Creation progress modal state
   const [showCreationModal, setShowCreationModal] = useState(false);
@@ -720,6 +726,15 @@ export const CreateDossierScreen = () => {
               onChangeText={(text) => updateEmergencyContact(index, text)}
               autoCapitalize="none"
             />
+            <TouchableOpacity
+              style={styles.scanButton}
+              onPress={() => {
+                setScanningForRecipient(index);
+                setShowQRScanner(true);
+              }}
+            >
+              <Icon name="camera" size={20} color={theme.colors.primary} />
+            </TouchableOpacity>
             {emergencyContacts.length > 1 && (
               <TouchableOpacity
                 style={styles.removeButton}
@@ -824,6 +839,15 @@ export const CreateDossierScreen = () => {
                     onChangeText={(text) => updateGuardian(index, text)}
                     autoCapitalize="none"
                   />
+                  <TouchableOpacity
+                    style={styles.scanButton}
+                    onPress={() => {
+                      setScanningForGuardian(index);
+                      setShowQRScanner(true);
+                    }}
+                  >
+                    <Icon name="camera" size={20} color={theme.colors.primary} />
+                  </TouchableOpacity>
                   {guardians.length > 1 && (
                     <TouchableOpacity
                       style={styles.removeButton}
@@ -1486,6 +1510,26 @@ export const CreateDossierScreen = () => {
           </View>
         </View>
       </Modal>
+
+      {/* QR Scanner Modal */}
+      <QRScanner
+        visible={showQRScanner}
+        onClose={() => {
+          setShowQRScanner(false);
+          setScanningForGuardian(null);
+          setScanningForRecipient(null);
+        }}
+        onScan={(address) => {
+          if (scanningForRecipient !== null) {
+            updateEmergencyContact(scanningForRecipient, address);
+          } else if (scanningForGuardian !== null) {
+            updateGuardian(scanningForGuardian, address);
+          }
+          setShowQRScanner(false);
+          setScanningForGuardian(null);
+          setScanningForRecipient(null);
+        }}
+      />
     </SafeAreaView>
   );
 };
@@ -1615,6 +1659,10 @@ const styles = StyleSheet.create({
   hint: {
     fontSize: 12,
   },
+  helperText: {
+    fontSize: 12,
+    marginTop: 4,
+  },
   infoCard: {
     borderRadius: 12,
     padding: 16,
@@ -1704,6 +1752,9 @@ const styles = StyleSheet.create({
   },
   contactInput: {
     flex: 1,
+  },
+  scanButton: {
+    padding: 8,
   },
   removeButton: {
     padding: 8,

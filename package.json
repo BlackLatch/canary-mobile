@@ -53,6 +53,7 @@
     "siwe": "^3.0.0",
     "stream-browserify": "^3.0.0",
     "viem": "^2.38.6",
+    "vision-camera-code-scanner": "^0.2.0",
     "wagmi": "^2.19.2"
   },
   "devDependencies": {
