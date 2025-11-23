@@ -309,6 +309,23 @@ export const CreateDossierScreen = () => {
   };
 
   const updateEmergencyContact = (index: number, value: string) => {
+    // Check for duplicate recipient addresses
+    const trimmedValue = value.trim().toLowerCase();
+    if (trimmedValue.length > 0) {
+      const hasDuplicate = emergencyContacts.some((contact, i) =>
+        i !== index && contact.trim().toLowerCase() === trimmedValue
+      );
+
+      if (hasDuplicate) {
+        Alert.alert(
+          'Duplicate Address',
+          'This recipient address has already been added. Each recipient must have a unique address.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+    }
+
     const updated = [...emergencyContacts];
     updated[index] = value;
     setEmergencyContacts(updated);
@@ -330,6 +347,23 @@ export const CreateDossierScreen = () => {
   };
 
   const updateGuardian = (index: number, value: string) => {
+    // Check for duplicate guardian addresses
+    const trimmedValue = value.trim().toLowerCase();
+    if (trimmedValue.length > 0) {
+      const hasDuplicate = guardians.some((guardian, i) =>
+        i !== index && guardian.trim().toLowerCase() === trimmedValue
+      );
+
+      if (hasDuplicate) {
+        Alert.alert(
+          'Duplicate Address',
+          'This guardian address has already been added. Each guardian must have a unique address.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+    }
+
     const updated = [...guardians];
     updated[index] = value;
     setGuardians(updated);
