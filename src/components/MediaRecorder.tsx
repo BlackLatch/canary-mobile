@@ -49,8 +49,8 @@ export const MediaRecorder: React.FC<MediaRecorderProps> = ({ mode, onFileReady,
       // Configure audio session for speaker output on iOS
       if (Platform.OS === 'ios' && AudioSessionManager) {
         AudioSessionManager.setAudioOutputToSpeaker()
-          .then(() => // console.log('✅ Audio session configured for speaker'))
-          .catch((error: any) => // console.error('Failed to configure audio session:', error));
+          .then(() => {/* console.log('✅ Audio session configured for speaker') */})
+          .catch((error: any) => {/* console.error('Failed to configure audio session:', error) */});
       }
     }
 

@@ -289,19 +289,7 @@ export class PinWalletService {
    */
   async hasWallet(): Promise<boolean> {
     try {
-      // Clean up any legacy wallets from old API (one-time migration)
-      try {
-        const legacyCheck = await Keychain.getInternetCredentials(CANARY_ETH_KEY_BUNDLE);
-        if (legacyCheck) {
-          // console.log('🧹 Found legacy wallet, clearing it...');
-          await Keychain.resetInternetCredentials(CANARY_ETH_KEY_BUNDLE);
-          // console.log('✅ Legacy wallet cleared');
-        }
-      } catch (e) {
-        // Ignore errors from legacy cleanup
-      }
-
-      // Check for wallet using canonical API
+      // Check for wallet using Generic Password API only
       const credentials = await Keychain.getGenericPassword({
         service: CANARY_ETH_KEY_BUNDLE,
       });
@@ -330,19 +318,15 @@ export class PinWalletService {
     try {
       // console.log('🧹 Resetting wallet - clearing keychain...');
 
-      // Clear new API
+      // Clear wallet using Generic Password API only
       const result = await Keychain.resetGenericPassword({
         service: CANARY_ETH_KEY_BUNDLE,
       });
       // console.log('🧹 GenericPassword reset result:', result);
-
-      // Also clear old API to ensure complete cleanup
-      await Keychain.resetInternetCredentials(CANARY_ETH_KEY_BUNDLE);
-      // console.log('🧹 InternetCredentials cleared (cleanup)');
-
       // console.log('✅ Wallet reset complete');
     } catch (error) {
       // console.log('🧹 Reset completed:', error);
+      // Silently handle errors during reset
     }
   }
 
@@ -390,20 +374,40 @@ export class PinWalletService {
    * Stores encrypted bundle in secure storage
    */
   private async storeBundle(bundle: EncryptedKeyBundle): Promise<void> {
-    try {
-      const bundleJson = JSON.stringify(bundle);
+    const bundleJson = JSON.stringify(bundle);
 
+    // Try hardware security first (Secure Enclave on iOS)
+    try {
       await Keychain.setGenericPassword(
         bundle.ethAddress, // username
         bundleJson, // password
         {
           service: CANARY_ETH_KEY_BUNDLE,
           accessible: Keychain.ACCESSIBLE.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
-          // Use SECURE_SOFTWARE for simulator compatibility
-          // On real devices with secure hardware, it will automatically use the best available
+          // Use hardware security module (Secure Enclave) on real devices
+          securityLevel: Keychain.SECURITY_LEVEL.SECURE_HARDWARE,
+        }
+      );
+      // console.log('✅ Wallet stored in hardware security module (Secure Enclave)');
+      return;
+    } catch (hwError) {
+      // Hardware security not available (simulator or older devices)
+      // console.log('⚠️ Hardware security not available, falling back to software encryption');
+    }
+
+    // Fallback to software encryption for simulators
+    try {
+      await Keychain.setGenericPassword(
+        bundle.ethAddress, // username
+        bundleJson, // password
+        {
+          service: CANARY_ETH_KEY_BUNDLE,
+          accessible: Keychain.ACCESSIBLE.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
+          // Fallback for simulators or devices without Secure Enclave
           securityLevel: Keychain.SECURITY_LEVEL.SECURE_SOFTWARE,
         }
       );
+      // console.log('✅ Wallet stored with software encryption (simulator mode)');
     } catch (error) {
       // console.error('Failed to store bundle in keychain:', error);
       // Throw a more user-friendly error
