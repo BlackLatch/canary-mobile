@@ -547,7 +547,6 @@ export const CreateDossierScreen = () => {
               placeholderTextColor={theme.colors.textSecondary}
               value={name}
               onChangeText={setName}
-              autoFocus
             />
             <TouchableOpacity
               style={[styles.randomButton, { borderColor: theme.colors.border }]}
