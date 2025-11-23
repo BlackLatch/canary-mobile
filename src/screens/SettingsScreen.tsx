@@ -16,6 +16,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from 'react-native-vector-icons/Feather';
 import { useWallet } from '../contexts/WalletContext';
 import { useTheme } from '../contexts/ThemeContext';
+import { useNotifications } from '../contexts/NotificationContext';
 import { burnerWalletService } from '../lib/burnerWallet';
 import { contractService } from '../lib/contract';
 import { ethers } from 'ethers';
@@ -28,6 +29,7 @@ const STORAGE_BACKEND_KEY = '@canary:storage_backend';
 export const SettingsScreen = () => {
   const { address, balance, walletType, lockWallet, resetWallet, disconnect, switchAccount } = useWallet();
   const { theme, themeMode, setThemeMode } = useTheme();
+  const { notificationsEnabled, toggleNotifications, isLoading } = useNotifications();
 
   const [storageBackend, setStorageBackend] = useState<StorageBackend>('pinata');
   const [showPrivateKeyModal, setShowPrivateKeyModal] = useState(false);
@@ -266,6 +268,35 @@ export const SettingsScreen = () => {
                 )}
               </View>
             </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Notifications Section */}
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Notifications</Text>
+          <Text style={[styles.sectionDescription, { color: theme.colors.textSecondary }]}>
+            Get reminded when your check-in deadline is approaching
+          </Text>
+
+          <View style={[styles.card, { backgroundColor: theme.colors.card }]}>
+            <View style={styles.switchRow}>
+              <View style={styles.switchContent}>
+                <Text style={[styles.switchTitle, { color: theme.colors.text }]}>
+                  Check-In Reminders
+                </Text>
+                <Text style={[styles.switchDescription, { color: theme.colors.textSecondary }]}>
+                  Receive notifications at 24hr, 1hr, and 15min before your deadline
+                </Text>
+              </View>
+              <Switch
+                value={notificationsEnabled}
+                onValueChange={toggleNotifications}
+                disabled={isLoading}
+                trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
+                thumbColor="#FFFFFF"
+                ios_backgroundColor={theme.colors.border}
+              />
+            </View>
           </View>
         </View>
 

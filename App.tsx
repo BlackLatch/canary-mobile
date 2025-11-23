@@ -9,6 +9,7 @@ import Toast from 'react-native-toast-message';
 import { ThemeProvider, useTheme } from './src/contexts/ThemeContext';
 import { WalletProvider } from './src/contexts/WalletContext';
 import { DossierProvider } from './src/contexts/DossierContext';
+import { NotificationProvider } from './src/contexts/NotificationContext';
 import { AuthenticatedApp } from './src/components/AuthenticatedApp';
 
 // console.log('App.tsx: Starting to load');
@@ -22,7 +23,9 @@ function AppContent() {
       <StatusBar barStyle={theme.isDark ? 'light-content' : 'dark-content'} />
       <WalletProvider>
         <DossierProvider>
-          <AuthenticatedApp />
+          <NotificationProvider>
+            <AuthenticatedApp />
+          </NotificationProvider>
         </DossierProvider>
       </WalletProvider>
       <Toast />

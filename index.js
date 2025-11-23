@@ -64,6 +64,19 @@ install();
 import { enableScreens } from 'react-native-screens';
 enableScreens();
 
+// Setup background notification event handler
+import notifee, { EventType } from '@notifee/react-native';
+
+notifee.onBackgroundEvent(async ({ type, detail }) => {
+  const { notification, pressAction } = detail;
+
+  // Handle notification press
+  if (type === EventType.PRESS) {
+    // Notification was tapped - app will open automatically
+    // Navigation will be handled by foreground event handler in App.tsx
+  }
+});
+
 import { AppRegistry } from 'react-native';
 import App from './App';
 import { name as appName } from './app.json';
