@@ -1,4 +1,5 @@
 import React from 'react';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import Icon from 'react-native-vector-icons/Feather';
@@ -16,30 +17,67 @@ import { DossierCreationProgressScreen } from '../screens/DossierCreationProgres
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
+const CustomTabBar = ({ state, descriptors, navigation }: any) => {
+  const { theme } = useTheme();
+
+  return (
+    <View style={[styles.tabBar, { backgroundColor: theme.colors.tabBarBackground, borderTopColor: theme.colors.border }]}>
+      {state.routes.map((route: any, index: number) => {
+        const { options } = descriptors[route.key];
+        const label = options.tabBarLabel;
+        const icon = options.tabBarIcon;
+
+        const isFocused = state.index === index;
+
+        const onPress = () => {
+          const event = navigation.emit({
+            type: 'tabPress',
+            target: route.key,
+            canPreventDefault: true,
+          });
+
+          if (!isFocused && !event.defaultPrevented) {
+            navigation.navigate(route.name);
+          }
+        };
+
+        return (
+          <React.Fragment key={route.key}>
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityState={isFocused ? { selected: true } : {}}
+              accessibilityLabel={options.tabBarAccessibilityLabel}
+              testID={options.tabBarTestID}
+              onPress={onPress}
+              style={styles.tabItem}
+            >
+              {icon({ color: isFocused ? theme.colors.primary : theme.colors.tabBarInactive })}
+              {typeof label === 'string' && (
+                <Text style={[styles.labelText, { color: isFocused ? theme.colors.primary : theme.colors.tabBarInactive }]}>
+                  {label}
+                </Text>
+              )}
+            </TouchableOpacity>
+            {index < state.routes.length - 1 && (
+              <View style={[styles.divider, { backgroundColor: theme.colors.border }]} />
+            )}
+          </React.Fragment>
+        );
+      })}
+    </View>
+  );
+};
+
 const TabNavigator = () => {
   const { theme } = useTheme();
 
   return (
     <Tab.Navigator
+      tabBar={(props) => <CustomTabBar {...props} />}
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: theme.colors.primary,
         tabBarInactiveTintColor: theme.colors.tabBarInactive,
-        tabBarStyle: {
-          backgroundColor: theme.colors.tabBarBackground,
-          borderTopColor: theme.colors.border,
-          borderTopWidth: 1,
-          paddingTop: 12,
-          paddingBottom: 12,
-          height: 88,
-        },
-        tabBarLabelStyle: {
-          fontSize: 9,
-          fontWeight: '600',
-          marginTop: 4,
-          letterSpacing: 0.5,
-          textTransform: 'uppercase',
-        },
       }}
     >
       <Tab.Screen
@@ -136,3 +174,31 @@ export const AppNavigator = () => {
     </Stack.Navigator>
   );
 };
+
+const styles = StyleSheet.create({
+  tabBar: {
+    flexDirection: 'row',
+    height: 88,
+    borderTopWidth: 1,
+    paddingTop: 12,
+    paddingBottom: 12,
+  },
+  tabItem: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  labelText: {
+    fontSize: 9,
+    fontWeight: '600',
+    marginTop: 4,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  divider: {
+    width: 1,
+    height: 40,
+    alignSelf: 'center',
+    opacity: 0.6,
+  },
+});

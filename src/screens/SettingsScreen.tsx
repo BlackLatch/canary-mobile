@@ -456,17 +456,6 @@ export const SettingsScreen = () => {
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Privacy & Security</Text>
 
-          <View style={[styles.card, { backgroundColor: theme.colors.card }]}>
-            <Text style={[styles.cardTitle, { color: theme.colors.text }]}>Privacy Guarantees</Text>
-            <Text style={[styles.cardDescription, { color: theme.colors.textSecondary }]}>
-              • End-to-end encryption for all dossiers{'\n'}
-              • No personal information required{'\n'}
-              • Local accounts{'\n'}
-              • Decentralized storage on IPFS/Codex{'\n'}
-              • On-chain proofs for verification
-            </Text>
-          </View>
-
           <TouchableOpacity
             style={[styles.menuButton, styles.dangerButton, { backgroundColor: theme.colors.card }]}
             onPress={handleClearLocalData}
