@@ -29,15 +29,15 @@ const TabNavigator = () => {
           backgroundColor: theme.colors.tabBarBackground,
           borderTopColor: theme.colors.border,
           borderTopWidth: 1,
-          paddingTop: 8,
-          paddingBottom: 8,
+          paddingTop: 12,
+          paddingBottom: 12,
           height: 88,
         },
         tabBarLabelStyle: {
-          fontSize: 11,
+          fontSize: 9,
           fontWeight: '600',
           marginTop: 4,
-          letterSpacing: 1,
+          letterSpacing: 0.5,
           textTransform: 'uppercase',
         },
       }}
@@ -47,8 +47,8 @@ const TabNavigator = () => {
         component={CheckInScreen}
         options={{
           tabBarLabel: 'Check In',
-          tabBarIcon: ({ color, size }) => (
-            <Icon name="heart" size={size - 2} color={color} />
+          tabBarIcon: ({ color }) => (
+            <Icon name="heart" size={20} color={color} />
           ),
         }}
       />
@@ -57,8 +57,8 @@ const TabNavigator = () => {
         component={DossiersScreen}
         options={{
           tabBarLabel: 'Dossiers',
-          tabBarIcon: ({ color, size }) => (
-            <Icon name="folder" size={size - 2} color={color} />
+          tabBarIcon: ({ color }) => (
+            <Icon name="folder" size={20} color={color} />
           ),
         }}
       />
@@ -67,8 +67,8 @@ const TabNavigator = () => {
         component={GuardScreen}
         options={{
           tabBarLabel: 'Guard',
-          tabBarIcon: ({ color, size }) => (
-            <Icon name="shield" size={size - 2} color={color} />
+          tabBarIcon: ({ color }) => (
+            <Icon name="shield" size={20} color={color} />
           ),
         }}
       />
@@ -77,8 +77,8 @@ const TabNavigator = () => {
         component={MonitorScreen}
         options={{
           tabBarLabel: 'Receive',
-          tabBarIcon: ({ color, size }) => (
-            <Icon name="inbox" size={size - 2} color={color} />
+          tabBarIcon: ({ color }) => (
+            <Icon name="inbox" size={20} color={color} />
           ),
         }}
       />
@@ -87,8 +87,8 @@ const TabNavigator = () => {
         component={SettingsScreen}
         options={{
           tabBarLabel: 'Settings',
-          tabBarIcon: ({ color, size }) => (
-            <Icon name="settings" size={size - 2} color={color} />
+          tabBarIcon: ({ color }) => (
+            <Icon name="settings" size={20} color={color} />
           ),
         }}
       />
