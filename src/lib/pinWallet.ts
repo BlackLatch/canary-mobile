@@ -15,7 +15,6 @@
 import * as Keychain from 'react-native-keychain';
 import { pbkdf2Sync, randomBytes, createCipheriv, createDecipheriv, createHmac } from 'react-native-quick-crypto';
 import { ethers } from 'ethers';
-import { InteractionManager } from 'react-native';
 import 'react-native-get-random-values';
 
 // Storage key for encrypted wallet bundle
@@ -55,7 +54,13 @@ export class PinWalletService {
    */
   private async waitForUI(): Promise<void> {
     return new Promise(resolve => {
-      InteractionManager.runAfterInteractions(() => resolve());
+      // Use requestIdleCallback for better performance and to avoid deprecation warning
+      if (typeof requestIdleCallback !== 'undefined') {
+        requestIdleCallback(() => resolve(), { timeout: 100 });
+      } else {
+        // Fallback to setTimeout if requestIdleCallback is not available
+        setTimeout(() => resolve(), 0);
+      }
     });
   }
 
