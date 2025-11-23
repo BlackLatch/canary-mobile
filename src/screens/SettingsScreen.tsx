@@ -14,6 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from 'react-native-vector-icons/Feather';
+import QRCode from 'react-native-qrcode-svg';
 import { useWallet } from '../contexts/WalletContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useNotifications } from '../contexts/NotificationContext';
@@ -34,6 +35,7 @@ export const SettingsScreen = () => {
   const [storageBackend, setStorageBackend] = useState<StorageBackend>('pinata');
   const [showPrivateKeyModal, setShowPrivateKeyModal] = useState(false);
   const [privateKey, setPrivateKey] = useState('');
+  const [showQRCodeModal, setShowQRCodeModal] = useState(false);
 
   // Load settings on mount
   React.useEffect(() => {
@@ -106,6 +108,13 @@ export const SettingsScreen = () => {
   const handleCopyPrivateKey = () => {
     Clipboard.setString(privateKey);
     Alert.alert('Copied', 'Private key copied to clipboard');
+  };
+
+  const handleCopyAddress = () => {
+    if (address) {
+      Clipboard.setString(address);
+      Alert.alert('Copied', 'Address copied to clipboard');
+    }
   };
 
   const handleBurnWallet = () => {
@@ -333,6 +342,16 @@ export const SettingsScreen = () => {
             </View>
           </View>
 
+          <TouchableOpacity
+            style={[styles.menuButton, { backgroundColor: theme.colors.card }]}
+            onPress={() => setShowQRCodeModal(true)}
+          >
+            <Text style={[styles.menuButtonText, { color: theme.colors.text }]}>
+              Show QR Code
+            </Text>
+            <Text style={[styles.menuButtonIcon, { color: theme.colors.textSecondary }]}>›</Text>
+          </TouchableOpacity>
+
           {walletType === 'burner' && (
             <>
               <TouchableOpacity
@@ -557,6 +576,57 @@ export const SettingsScreen = () => {
                   setShowPrivateKeyModal(false);
                   setPrivateKey('');
                 }}
+              >
+                <Text style={[styles.modalButtonText, { color: '#FFFFFF' }]}>Done</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* QR Code Modal */}
+      <Modal
+        visible={showQRCodeModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowQRCodeModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: theme.colors.card }]}>
+            <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
+              Account Address
+            </Text>
+            <Text style={[styles.modalDescription, { color: theme.colors.textSecondary }]}>
+              Scan this QR code to receive funds
+            </Text>
+
+            {address && (
+              <View style={styles.qrCodeContainer}>
+                <QRCode
+                  value={address}
+                  size={200}
+                  backgroundColor="white"
+                  color="black"
+                />
+              </View>
+            )}
+
+            <View style={[styles.addressContainer, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+              <Text style={[styles.addressText, { color: theme.colors.text }]} selectable>
+                {address}
+              </Text>
+            </View>
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalButtonSecondary, { borderColor: theme.colors.border }]}
+                onPress={handleCopyAddress}
+              >
+                <Text style={[styles.modalButtonText, { color: theme.colors.text }]}>Copy Address</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalButtonPrimary, { backgroundColor: theme.colors.primary }]}
+                onPress={() => setShowQRCodeModal(false)}
               >
                 <Text style={[styles.modalButtonText, { color: '#FFFFFF' }]}>Done</Text>
               </TouchableOpacity>
@@ -801,6 +871,26 @@ const styles = StyleSheet.create({
   modalButtonText: {
     fontSize: 16,
     fontWeight: '600',
+  },
+  qrCodeContainer: {
+    padding: 20,
+    backgroundColor: 'white',
+    borderRadius: 12,
+    marginVertical: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addressContainer: {
+    padding: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginBottom: 20,
+  },
+  addressText: {
+    fontSize: 12,
+    fontFamily: 'monospace',
+    lineHeight: 18,
+    textAlign: 'center',
   },
   // Screen Header Styles
   screenHeader: {
