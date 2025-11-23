@@ -8,6 +8,10 @@ import 'react-native-url-polyfill/auto';
 import { Buffer } from 'buffer';
 global.Buffer = Buffer;
 
+// Install react-native-quick-crypto for native crypto operations
+import { install } from 'react-native-quick-crypto';
+install();
+
 // Enable react-native-screens
 import { enableScreens } from 'react-native-screens';
 enableScreens();
