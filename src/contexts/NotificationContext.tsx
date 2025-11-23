@@ -8,7 +8,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { notificationService } from '../lib/notificationService';
-import { useDossiers } from './DossierContext';
+import { useDossier } from './DossierContext';
 
 // Storage key for notification preferences
 const NOTIFICATIONS_ENABLED_KEY = '@canary:notifications_enabled';
@@ -29,7 +29,7 @@ interface NotificationProviderProps {
 export const NotificationProvider: React.FC<NotificationProviderProps> = ({ children }) => {
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const { dossiers, loading: dossiersLoading } = useDossiers();
+  const { dossiers, isLoading: dossiersLoading } = useDossier();
 
   /**
    * Load notification preference from AsyncStorage on mount
