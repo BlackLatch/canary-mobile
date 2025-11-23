@@ -73,7 +73,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
       await audioRecorderPlayer.pausePlayer();
       setIsLoading(false);
     } catch (err: any) {
-      console.error('Failed to load audio:', err);
+      // console.error('Failed to load audio:', err);
       setError('Failed to load audio file');
       setIsLoading(false);
     }
@@ -86,7 +86,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
       setPosition(0);
       setDuration(0);
     } catch (err) {
-      console.error('Error cleaning up audio:', err);
+      // console.error('Error cleaning up audio:', err);
     }
   };
 
@@ -106,7 +106,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
         setIsPlaying(true);
       }
     } catch (err) {
-      console.error('Playback error:', err);
+      // console.error('Playback error:', err);
       setError('Playback failed');
     }
   };
@@ -117,7 +117,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
       setIsPlaying(false);
       setPosition(0);
     } catch (err) {
-      console.error('Stop error:', err);
+      // console.error('Stop error:', err);
     }
   };
 

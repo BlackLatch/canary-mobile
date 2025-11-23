@@ -49,8 +49,8 @@ export const MediaRecorder: React.FC<MediaRecorderProps> = ({ mode, onFileReady,
       // Configure audio session for speaker output on iOS
       if (Platform.OS === 'ios' && AudioSessionManager) {
         AudioSessionManager.setAudioOutputToSpeaker()
-          .then(() => console.log('✅ Audio session configured for speaker'))
-          .catch((error: any) => console.error('Failed to configure audio session:', error));
+          .then(() => // console.log('✅ Audio session configured for speaker'))
+          .catch((error: any) => // console.error('Failed to configure audio session:', error));
       }
     }
 
@@ -95,7 +95,7 @@ export const MediaRecorder: React.FC<MediaRecorderProps> = ({ mode, onFileReady,
         }
       }
     } catch (err) {
-      console.error('Permission request error:', err);
+      // console.error('Permission request error:', err);
       Alert.alert('Error', 'Failed to request permissions');
     }
   };
@@ -128,18 +128,18 @@ export const MediaRecorder: React.FC<MediaRecorderProps> = ({ mode, onFileReady,
 
     try {
       if (mode === 'video' && camera.current) {
-        console.log('📹 Starting video recording');
+        // console.log('📹 Starting video recording');
         await camera.current.startRecording({
           // Optimize video settings for performance
           videoBitRate: 'low', // Use low bitrate for smaller file size and better performance
           onRecordingFinished: (video) => {
-            console.log('✅ Video recording finished:', video.path);
+            // console.log('✅ Video recording finished:', video.path);
             setRecordedUri(`file://${video.path}`);
             setRecordingState('stopped');
             stopTimer();
           },
           onRecordingError: (error) => {
-            console.error('❌ Video recording error:', error);
+            // console.error('❌ Video recording error:', error);
             Alert.alert('Error', `Failed to record video: ${error.message}`);
             setRecordingState('idle');
             stopTimer();
@@ -148,7 +148,7 @@ export const MediaRecorder: React.FC<MediaRecorderProps> = ({ mode, onFileReady,
         setRecordingState('recording');
         startTimer();
       } else if (mode === 'voice') {
-        console.log('🎤 Starting audio recording');
+        // console.log('🎤 Starting audio recording');
 
         // Check microphone permission first for iOS
         if (Platform.OS === 'ios') {
@@ -163,7 +163,7 @@ export const MediaRecorder: React.FC<MediaRecorderProps> = ({ mode, onFileReady,
 
         // Ensure audio recorder is initialized
         if (!audioRecorderPlayer.current) {
-          console.log('Creating new AudioRecorderPlayer instance');
+          // console.log('Creating new AudioRecorderPlayer instance');
           audioRecorderPlayer.current = new AudioRecorderPlayer();
 
           // Set audio encoding options for iOS
@@ -173,7 +173,7 @@ export const MediaRecorder: React.FC<MediaRecorderProps> = ({ mode, onFileReady,
         // Start recording with AudioRecorderPlayer
         // For iOS, pass undefined to use default path or specify full path
         const uri = await audioRecorderPlayer.current.startRecorder(undefined);
-        console.log('✅ Audio recording started:', uri);
+        // console.log('✅ Audio recording started:', uri);
 
         setRecordedUri(uri);
         setRecordingState('recording');
@@ -186,7 +186,7 @@ export const MediaRecorder: React.FC<MediaRecorderProps> = ({ mode, onFileReady,
         });
       }
     } catch (error: any) {
-      console.error('Failed to start recording:', error);
+      // console.error('Failed to start recording:', error);
       Alert.alert('Error', `Failed to start recording: ${error.message}`);
     }
   };
@@ -197,15 +197,15 @@ export const MediaRecorder: React.FC<MediaRecorderProps> = ({ mode, onFileReady,
         await camera.current.pauseRecording();
         setRecordingState('paused');
         stopTimer();
-        console.log('⏸️ Paused video recording');
+        // console.log('⏸️ Paused video recording');
       } else if (mode === 'voice') {
         await audioRecorderPlayer.current.pauseRecorder();
         setRecordingState('paused');
         stopTimer();
-        console.log('⏸️ Paused audio recording');
+        // console.log('⏸️ Paused audio recording');
       }
     } catch (error: any) {
-      console.error('Failed to pause recording:', error);
+      // console.error('Failed to pause recording:', error);
     }
   };
 
@@ -215,34 +215,34 @@ export const MediaRecorder: React.FC<MediaRecorderProps> = ({ mode, onFileReady,
         await camera.current.resumeRecording();
         setRecordingState('recording');
         startTimer();
-        console.log('▶️ Resumed video recording');
+        // console.log('▶️ Resumed video recording');
       } else if (mode === 'voice') {
         await audioRecorderPlayer.current.resumeRecorder();
         setRecordingState('recording');
         startTimer();
-        console.log('▶️ Resumed audio recording');
+        // console.log('▶️ Resumed audio recording');
       }
     } catch (error: any) {
-      console.error('Failed to resume recording:', error);
+      // console.error('Failed to resume recording:', error);
     }
   };
 
   const handleStopRecording = async () => {
     try {
       if (mode === 'video' && camera.current && recordingState !== 'idle') {
-        console.log('⏹️ Stopping video recording');
+        // console.log('⏹️ Stopping video recording');
         await camera.current.stopRecording();
         // The onRecordingFinished callback will handle the rest
       } else if (mode === 'voice' && recordingState !== 'idle') {
-        console.log('⏹️ Stopping audio recording');
+        // console.log('⏹️ Stopping audio recording');
         const result = await audioRecorderPlayer.current.stopRecorder();
         audioRecorderPlayer.current.removeRecordBackListener();
-        console.log('✅ Audio recording finished:', result);
+        // console.log('✅ Audio recording finished:', result);
         setRecordingState('stopped');
         stopTimer();
       }
     } catch (error: any) {
-      console.error('Failed to stop recording:', error);
+      // console.error('Failed to stop recording:', error);
       Alert.alert('Error', `Failed to stop recording: ${error.message}`);
     }
   };
@@ -264,10 +264,10 @@ export const MediaRecorder: React.FC<MediaRecorderProps> = ({ mode, onFileReady,
                 const exists = await RNFS.exists(filePath);
                 if (exists) {
                   await RNFS.unlink(filePath);
-                  console.log(`🗑️ Deleted file: ${filePath}`);
+                  // console.log(`🗑️ Deleted file: ${filePath}`);
                 }
               } catch (error) {
-                console.error('Failed to delete file:', error);
+                // console.error('Failed to delete file:', error);
               }
             }
 
@@ -288,29 +288,29 @@ export const MediaRecorder: React.FC<MediaRecorderProps> = ({ mode, onFileReady,
           await audioRecorderPlayer.current.pausePlayer();
           audioRecorderPlayer.current.removePlayBackListener();
           setIsPlaying(false);
-          console.log('⏸️ Paused audio playback at', playbackPosition);
+          // console.log('⏸️ Paused audio playback at', playbackPosition);
         } else {
           // Remove any existing listener first
           audioRecorderPlayer.current.removePlayBackListener();
 
-          console.log('📱 Starting playback for:', recordedUri);
+          // console.log('📱 Starting playback for:', recordedUri);
 
           // Start or resume playback
           const msg = await audioRecorderPlayer.current.startPlayer(recordedUri);
-          console.log('✅ Player started, returned:', msg);
+          // console.log('✅ Player started, returned:', msg);
 
           setIsPlaying(true);
 
           // Listen for playback progress
           audioRecorderPlayer.current.addPlayBackListener((e) => {
-            console.log('Playback progress:', e.currentPosition, '/', e.duration);
+            // console.log('Playback progress:', e.currentPosition, '/', e.duration);
             // Update playback position (convert milliseconds to seconds)
             const positionInSeconds = Math.floor(e.currentPosition / 1000);
             setPlaybackPosition(positionInSeconds);
 
             // Check for completion
             if (e.currentPosition >= e.duration && e.duration > 0) {
-              console.log('✅ Playback completed');
+              // console.log('✅ Playback completed');
               setIsPlaying(false);
               setPlaybackPosition(0);
               audioRecorderPlayer.current.stopPlayer();
@@ -324,7 +324,7 @@ export const MediaRecorder: React.FC<MediaRecorderProps> = ({ mode, onFileReady,
         Alert.alert('Preview Not Available', 'Video preview is not available. You can still use the recorded video.');
       }
     } catch (error: any) {
-      console.error('Failed to play/pause:', error);
+      // console.error('Failed to play/pause:', error);
       Alert.alert('Error', `Failed to play audio: ${error.message}`);
     }
   };
@@ -355,7 +355,7 @@ export const MediaRecorder: React.FC<MediaRecorderProps> = ({ mode, onFileReady,
         size: fileSize,
       });
     } catch (error: any) {
-      console.error('Failed to get file info:', error);
+      // console.error('Failed to get file info:', error);
       Alert.alert('Error', `Failed to process recording: ${error.message}`);
     }
   };

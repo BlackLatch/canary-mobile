@@ -171,7 +171,7 @@ export class SessionManager {
       try {
         listener(event);
       } catch (error) {
-        console.error('Session listener error:', error);
+        // console.error('Session listener error:', error);
       }
     });
   }

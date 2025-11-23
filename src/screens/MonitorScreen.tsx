@@ -42,11 +42,11 @@ export const MonitorScreen = () => {
     setIsLoadingDossiers(true);
 
     try {
-      console.log('📋 Loading dossiers where user is a private recipient...');
+      // console.log('📋 Loading dossiers where user is a private recipient...');
 
       // Get all dossier references where user is a recipient
       const references: DossierReference[] = await ContractService.getDossiersWhereRecipient(address);
-      console.log(`Found ${references.length} dossier(s) where ${address} is a recipient`);
+      // console.log(`Found ${references.length} dossier(s) where ${address} is a recipient`);
 
       if (references.length === 0) {
         setRecipientDossiers([]);
@@ -60,7 +60,7 @@ export const MonitorScreen = () => {
       for (const ref of references) {
         // Skip dossiers owned by the current user
         if (ref.owner.toLowerCase() === address.toLowerCase()) {
-          console.log(`Skipping own dossier ${ref.dossierId}`);
+          // console.log(`Skipping own dossier ${ref.dossierId}`);
           continue;
         }
 
@@ -83,14 +83,14 @@ export const MonitorScreen = () => {
             isThresholdMet,
           });
         } catch (error) {
-          console.error(`Failed to load dossier ${ref.dossierId} for owner ${ref.owner}:`, error);
+          // console.error(`Failed to load dossier ${ref.dossierId} for owner ${ref.owner}:`, error);
         }
       }
 
       setRecipientDossiers(dossiers);
-      console.log(`✅ Loaded ${dossiers.length} recipient dossier(s) from other accounts`);
+      // console.log(`✅ Loaded ${dossiers.length} recipient dossier(s) from other accounts`);
     } catch (error) {
-      console.error('Failed to load recipient dossiers:', error);
+      // console.error('Failed to load recipient dossiers:', error);
     } finally {
       setIsLoadingDossiers(false);
     }

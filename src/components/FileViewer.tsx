@@ -130,16 +130,16 @@ export const FileViewer: React.FC<FileViewerProps> = ({
             source={{ uri: fileUri }}
             style={styles.pdf}
             onLoadComplete={(numberOfPages: number) => {
-              console.log(`PDF loaded with ${numberOfPages} pages`);
+              // console.log(`PDF loaded with ${numberOfPages} pages`);
               setTotalPages(numberOfPages);
               setLoading(false);
             }}
             onPageChanged={(page: number) => {
-              console.log(`Current page: ${page}`);
+              // console.log(`Current page: ${page}`);
               setCurrentPage(page);
             }}
             onError={(error: any) => {
-              console.error('PDF load error:', error);
+              // console.error('PDF load error:', error);
               setLoading(false);
               setError('Failed to load PDF');
             }}

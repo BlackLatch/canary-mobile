@@ -72,10 +72,10 @@ class TacoMobileService {
     try {
       await TacoMobile.initialize();
       this.initialized = true;
-      console.log('✅ TACo Mobile initialized');
+      // console.log('✅ TACo Mobile initialized');
       return true;
     } catch (error) {
-      console.error('❌ TACo Mobile initialization failed:', error);
+      // console.error('❌ TACo Mobile initialization failed:', error);
       return false;
     }
   }
@@ -84,7 +84,7 @@ class TacoMobileService {
    * Fetch DKG public key from Coordinator contract on Polygon Amoy
    */
   private async fetchDkgPublicKey(ritualId: number): Promise<Uint8Array> {
-    console.log(`🔗 Fetching DKG public key from Coordinator contract for ritual ${ritualId}...`);
+    // console.log(`🔗 Fetching DKG public key from Coordinator contract for ritual ${ritualId}...`);
 
     // Connect to Polygon Amoy where TACo infrastructure exists
     const provider = new ethers.providers.JsonRpcProvider('https://rpc-amoy.polygon.technology/');
@@ -108,10 +108,10 @@ class TacoMobileService {
       const word1 = ethers.utils.arrayify(ritual.publicKey.word1);
       const publicKeyBytes = new Uint8Array([...word0, ...word1]);
 
-      console.log(`✅ Fetched DKG public key from contract (${publicKeyBytes.length} bytes)`);
+      // console.log(`✅ Fetched DKG public key from contract (${publicKeyBytes.length} bytes)`);
       return publicKeyBytes;
     } catch (error) {
-      console.error('❌ Failed to fetch DKG public key from contract:', error);
+      // console.error('❌ Failed to fetch DKG public key from contract:', error);
       throw new Error(`Failed to fetch DKG public key from Coordinator contract: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
@@ -120,7 +120,7 @@ class TacoMobileService {
    * Fetch ritual information from Coordinator contract on Polygon Amoy
    */
   private async fetchRitualInfo(ritualId: number): Promise<DkgRitualResponse> {
-    console.log(`🔗 Fetching ritual info from Coordinator contract for ritual ${ritualId}...`);
+    // console.log(`🔗 Fetching ritual info from Coordinator contract for ritual ${ritualId}...`);
 
     // Connect to Polygon Amoy where TACo infrastructure exists
     const provider = new ethers.providers.JsonRpcProvider('https://rpc-amoy.polygon.technology/');
@@ -138,13 +138,13 @@ class TacoMobileService {
 
     try {
       // Fetch ritual data and participants from contract
-      console.log('📋 Fetching ritual data and participants from contract...');
+      // console.log('📋 Fetching ritual data and participants from contract...');
       const [ritual, participants] = await Promise.all([
         coordinator.rituals(ritualId),
         coordinator.getParticipants(ritualId)
       ]);
 
-      console.log(`✅ Ritual ${ritualId}: threshold=${ritual.threshold}, participants=${participants.length}`);
+      // console.log(`✅ Ritual ${ritualId}: threshold=${ritual.threshold}, participants=${participants.length}`);
 
       // Extract participant info
       const dkgParticipants: DkgParticipant[] = participants.map((p: any) => ({
@@ -152,7 +152,7 @@ class TacoMobileService {
         decryption_request_static_key: ethers.utils.hexlify(p.decryptionRequestStaticKey),
       }));
 
-      console.log(`✅ Using ${dkgParticipants.length} participants from contract`);
+      // console.log(`✅ Using ${dkgParticipants.length} participants from contract`);
 
       // Combine word0 (32 bytes) and word1 (16 bytes) to get the full 48-byte BLS12-381 G1 point
       const word0 = ethers.utils.arrayify(ritual.publicKey.word0);
@@ -166,7 +166,7 @@ class TacoMobileService {
         ritual_id: ritualId,
       };
     } catch (error) {
-      console.error('❌ Failed to fetch ritual info:', error);
+      // console.error('❌ Failed to fetch ritual info:', error);
       throw new Error(`Failed to fetch ritual info: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
@@ -176,8 +176,8 @@ class TacoMobileService {
    * Uses TACo's ContractCondition format with custom function ABI
    */
   private createPublicDossierConditionJson(userAddress: string, dossierId: bigint): string {
-    console.log(`🔒 Creating PUBLIC Contract condition: user=${userAddress}, dossier=${dossierId.toString()}`);
-    console.log(`📍 Contract: ${DOSSIER_CONTRACT_ADDRESS} on Status Network Sepolia`);
+    // console.log(`🔒 Creating PUBLIC Contract condition: user=${userAddress}, dossier=${dossierId.toString()}`);
+    // console.log(`📍 Contract: ${DOSSIER_CONTRACT_ADDRESS} on Status Network Sepolia`);
 
     // Create ContractCondition JSON matching TACo SDK format
     // Reference: https://docs.taco.build/for-developers/taco-sdk/references/conditions/contractcondition/use-custom-contract-calls
@@ -211,7 +211,7 @@ class TacoMobileService {
     };
 
     const conditionString = JSON.stringify(conditionJson);
-    console.log('📋 Public Condition JSON:', conditionString);
+    // console.log('📋 Public Condition JSON:', conditionString);
     return conditionString;
   }
 
@@ -225,9 +225,9 @@ class TacoMobileService {
     dossierId: bigint,
     recipients: string[]
   ): string {
-    console.log(`🔒 Creating PRIVATE Compound condition: user=${userAddress}, dossier=${dossierId.toString()}`);
-    console.log(`👥 Recipients: ${recipients.join(', ')}`);
-    console.log(`📍 Contract: ${DOSSIER_CONTRACT_ADDRESS} on Status Network Sepolia`);
+    // console.log(`🔒 Creating PRIVATE Compound condition: user=${userAddress}, dossier=${dossierId.toString()}`);
+    // console.log(`👥 Recipients: ${recipients.join(', ')}`);
+    // console.log(`📍 Contract: ${DOSSIER_CONTRACT_ADDRESS} on Status Network Sepolia`);
 
     // Condition 1: Contract check (same as public)
     const contractCondition = {
@@ -280,7 +280,7 @@ class TacoMobileService {
     };
 
     const conditionString = JSON.stringify(compoundCondition);
-    console.log('📋 Private Compound Condition JSON:', conditionString);
+    // console.log('📋 Private Compound Condition JSON:', conditionString);
     return conditionString;
   }
 
@@ -300,19 +300,19 @@ class TacoMobileService {
   ): Promise<EncryptionResult> {
     await this.initialize();
 
-    console.log('🔐 Starting encryption process...');
-    console.log(`📁 File: ${fileName} (${fileData.length} bytes)`);
-    console.log(`🆔 Dossier ID: ${dossierId.toString()}`);
-    console.log(`👤 User: ${userAddress}`);
-    console.log(`🔓 Release Mode: ${releaseMode}`);
+    // console.log('🔐 Starting encryption process...');
+    // console.log(`📁 File: ${fileName} (${fileData.length} bytes)`);
+    // console.log(`🆔 Dossier ID: ${dossierId.toString()}`);
+    // console.log(`👤 User: ${userAddress}`);
+    // console.log(`🔓 Release Mode: ${releaseMode}`);
     if (releaseMode === 'private') {
-      console.log(`👥 Recipients: ${recipients.join(', ')}`);
+      // console.log(`👥 Recipients: ${recipients.join(', ')}`);
     }
 
     // Fetch DKG public key for the ritual
-    console.log(`🔑 Fetching DKG public key for ritual ${RITUAL_ID}...`);
+    // console.log(`🔑 Fetching DKG public key for ritual ${RITUAL_ID}...`);
     const dkgPublicKey = await this.fetchDkgPublicKey(RITUAL_ID);
-    console.log(`✅ DKG public key fetched (${dkgPublicKey.length} bytes)`);
+    // console.log(`✅ DKG public key fetched (${dkgPublicKey.length} bytes)`);
 
     // Create condition JSON based on release mode
     let conditionsJson: string;
@@ -323,10 +323,10 @@ class TacoMobileService {
       // Public or guardian release: use simple ContractCondition
       conditionsJson = this.createPublicDossierConditionJson(userAddress, dossierId);
     }
-    console.log('📋 Condition JSON:', conditionsJson);
+    // console.log('📋 Condition JSON:', conditionsJson);
 
     // Encrypt using taco-mobile
-    console.log('🔒 Encrypting with threshold encryption...');
+    // console.log('🔒 Encrypting with threshold encryption...');
     const encryptedData = await TacoMobile.thresholdEncrypt(
       fileData,
       dkgPublicKey,
@@ -335,7 +335,7 @@ class TacoMobileService {
 
     // Get MessageKit bytes
     const messageKitBytes = await encryptedData.getMessageKitBytes();
-    console.log(`✅ Encryption successful (${messageKitBytes.length} bytes)`);
+    // console.log(`✅ Encryption successful (${messageKitBytes.length} bytes)`);
 
     // Clean up encrypted data handle
     await encryptedData.destroy();
@@ -363,24 +363,24 @@ class TacoMobileService {
   async decryptFile(messageKitBytes: Uint8Array): Promise<Uint8Array> {
     await this.initialize();
 
-    console.log('🔓 Starting decryption process...');
-    console.log(`📦 MessageKit size: ${messageKitBytes.length} bytes`);
+    // console.log('🔓 Starting decryption process...');
+    // console.log(`📦 MessageKit size: ${messageKitBytes.length} bytes`);
 
     try {
       // Step 1: Load MessageKit bytes into EncryptedData
-      console.log('📥 Loading MessageKit bytes...');
+      // console.log('📥 Loading MessageKit bytes...');
       const encryptedData = await EncryptedData.fromMessageKitBytes(messageKitBytes);
-      console.log('✅ MessageKit loaded successfully');
+      // console.log('✅ MessageKit loaded successfully');
 
       // Step 2: Fetch ritual information
-      console.log(`🔍 Fetching ritual info for ritual ${RITUAL_ID}...`);
+      // console.log(`🔍 Fetching ritual info for ritual ${RITUAL_ID}...`);
       const ritualInfo = await this.fetchRitualInfo(RITUAL_ID);
-      console.log(`✅ Found ${ritualInfo.participants.length} participants, threshold: ${ritualInfo.threshold}`);
+      // console.log(`✅ Found ${ritualInfo.participants.length} participants, threshold: ${ritualInfo.threshold}`);
 
       // Step 3: Create decryption request (generates ephemeral keypair)
-      console.log('🔑 Creating decryption request...');
+      // console.log('🔑 Creating decryption request...');
       const request = await encryptedData.createDecryptionRequest(RITUAL_ID);
-      console.log('✅ Decryption request created');
+      // console.log('✅ Decryption request created');
 
       // Step 4: Request decryption shares from Ursulas
       const shares = await this.requestDecryptionShares(
@@ -391,13 +391,13 @@ class TacoMobileService {
       );
 
       // Step 5: Combine shares to recover plaintext
-      console.log(`🔗 Combining ${shares.length} shares...`);
+      // console.log(`🔗 Combining ${shares.length} shares...`);
       const plaintext = await request.combineDecryptionShares(shares);
-      console.log(`✅ Decryption successful! Plaintext size: ${plaintext.length} bytes`);
+      // console.log(`✅ Decryption successful! Plaintext size: ${plaintext.length} bytes`);
 
       return plaintext;
     } catch (error) {
-      console.error('❌ Decryption failed:', error);
+      // console.error('❌ Decryption failed:', error);
       throw error;
     }
   }
@@ -412,8 +412,8 @@ class TacoMobileService {
     threshold: number,
     messageKitBytes: Uint8Array
   ): Promise<Uint8Array[]> {
-    console.log(`📨 Creating encrypted requests for ${participants.length} Ursulas...`);
-    console.log(`📋 Participant addresses:`, participants.map(p => p.provider));
+    // console.log(`📨 Creating encrypted requests for ${participants.length} Ursulas...`);
+    // console.log(`📋 Participant addresses:`, participants.map(p => p.provider));
 
     // Create encrypted decryption requests for all participants
     // Porter expects a mapping from provider address to encrypted request
@@ -421,7 +421,7 @@ class TacoMobileService {
 
     for (const participant of participants) {
       try {
-        console.log(`🔐 Creating request for ${participant.provider}...`);
+        // console.log(`🔐 Creating request for ${participant.provider}...`);
         const ursulaPublicKey = hexToBytes(participant.decryption_request_static_key);
         const encryptedRequest = await request.createEncryptedRequestForUrsula(ursulaPublicKey);
 
@@ -434,7 +434,7 @@ class TacoMobileService {
         const base64Request = btoa(binaryString);
 
         encryptedRequests[participant.provider] = base64Request;
-        console.log(`✅ Created encrypted request for ${participant.provider}`);
+        // console.log(`✅ Created encrypted request for ${participant.provider}`);
       } catch (error) {
         console.warn(`⚠️ Failed to create request for ${participant.provider}:`, error);
       }
@@ -445,7 +445,7 @@ class TacoMobileService {
     }
 
     // Send all requests to Porter's /decrypt endpoint
-    console.log(`📨 Sending ${Object.keys(encryptedRequests).length} encrypted requests to Porter...`);
+    // console.log(`📨 Sending ${Object.keys(encryptedRequests).length} encrypted requests to Porter...`);
 
     const requestBody = {
       threshold: threshold,
@@ -462,7 +462,7 @@ class TacoMobileService {
       ]);
     };
 
-    console.log(`⏳ Waiting for Porter response (this may take a few minutes)...`);
+    // console.log(`⏳ Waiting for Porter response (this may take a few minutes)...`);
     const response = await fetchWithTimeout(
       `${PORTER_BASE_URL}/decrypt`,
       {
@@ -474,21 +474,21 @@ class TacoMobileService {
       }
     );
 
-    console.log(`📥 Porter responded with status: ${response.status}`);
+    // console.log(`📥 Porter responded with status: ${response.status}`);
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.log(`❌ Porter error response: ${errorText}`);
+      // console.log(`❌ Porter error response: ${errorText}`);
       throw new Error(`Porter decrypt failed: ${response.statusText} - ${errorText}`);
     }
 
     const data = await response.json();
-    console.log(`✅ Porter returned decryption response (full):`, JSON.stringify(data, null, 2));
+    // console.log(`✅ Porter returned decryption response (full):`, JSON.stringify(data, null, 2));
 
     // Check for errors in response
     const decryptionResults = data.result?.decryption_results || data;
     if (decryptionResults.errors && Object.keys(decryptionResults.errors).length > 0) {
-      console.error('❌ Decryption errors from Ursulas:', JSON.stringify(decryptionResults.errors, null, 2));
+      // console.error('❌ Decryption errors from Ursulas:', JSON.stringify(decryptionResults.errors, null, 2));
     }
 
     // Decrypt the responses from each Ursula
@@ -497,7 +497,7 @@ class TacoMobileService {
     // Porter returns encrypted responses that we need to decrypt
     const encryptedResponses = decryptionResults.encrypted_decryption_responses || data.encrypted_decryption_responses;
     if (encryptedResponses) {
-      console.log(`📦 Processing ${Object.keys(encryptedResponses).length} encrypted responses`);
+      // console.log(`📦 Processing ${Object.keys(encryptedResponses).length} encrypted responses`);
 
       // Match each response to the correct participant by address
       for (const participant of participants) {
@@ -505,23 +505,23 @@ class TacoMobileService {
         const encryptedResponseHex = encryptedResponses[ursulaAddress];
 
         if (!encryptedResponseHex) {
-          console.log(`⏭️ No response from ${ursulaAddress}, skipping`);
+          // console.log(`⏭️ No response from ${ursulaAddress}, skipping`);
           continue;
         }
 
         try {
-          console.log(`🔓 Decrypting response from ${ursulaAddress}...`);
+          // console.log(`🔓 Decrypting response from ${ursulaAddress}...`);
           // Porter returns base64-encoded responses
           const encryptedResponse = Uint8Array.from(atob(encryptedResponseHex), c => c.charCodeAt(0));
           const ursulaPublicKey = hexToBytes(participant.decryption_request_static_key);
 
           const share = await request.decryptUrsulaResponse(encryptedResponse, ursulaPublicKey);
           shares.push(share);
-          console.log(`✅ Decrypted share ${shares.length}/${threshold} from ${ursulaAddress}`);
+          // console.log(`✅ Decrypted share ${shares.length}/${threshold} from ${ursulaAddress}`);
 
           // Stop once we have enough shares
           if (shares.length >= threshold) {
-            console.log(`✅ Collected enough shares (${shares.length}/${threshold})`);
+            // console.log(`✅ Collected enough shares (${shares.length}/${threshold})`);
             break;
           }
         } catch (error) {
@@ -542,7 +542,7 @@ class TacoMobileService {
    */
   async commitToPinata(encryptionResult: EncryptionResult): Promise<CommitResult> {
     try {
-      console.log('🟣 Uploading to Pinata...');
+      // console.log('🟣 Uploading to Pinata...');
 
       const pinataUploadResult = await uploadToPinata(
         encryptionResult.encryptedData,
@@ -550,7 +550,7 @@ class TacoMobileService {
       );
 
       if (pinataUploadResult.success) {
-        console.log('✅ Pinata upload successful:', pinataUploadResult.ipfsHash);
+        // console.log('✅ Pinata upload successful:', pinataUploadResult.ipfsHash);
         return {
           encryptionResult,
           pinataCid: pinataUploadResult.ipfsHash,
@@ -562,7 +562,7 @@ class TacoMobileService {
         throw new Error(`Pinata upload failed: ${pinataUploadResult.error}`);
       }
     } catch (error) {
-      console.error('❌ Pinata upload failed:', error);
+      // console.error('❌ Pinata upload failed:', error);
       throw new Error(`Storage failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }

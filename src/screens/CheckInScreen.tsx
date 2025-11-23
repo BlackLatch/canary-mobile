@@ -38,7 +38,7 @@ export const CheckInScreen: React.FC = () => {
     // Auto-connect burner wallet on mount if not connected
     if (!isConnected) {
       connectBurnerWallet().catch((err) => {
-        console.error('Failed to auto-connect:', err);
+        // console.error('Failed to auto-connect:', err);
       });
     }
   }, [isConnected]);
@@ -147,12 +147,12 @@ export const CheckInScreen: React.FC = () => {
     try {
       const result = await checkInAll();
       if (result.success) {
-        console.log('✅ Check-in all successful');
+        // console.log('✅ Check-in all successful');
         setCheckInSuccess(true);
         // Reset success message after 3 seconds
         setTimeout(() => setCheckInSuccess(false), 3000);
       } else {
-        console.error('❌ Check-in all failed:', result.error);
+        // console.error('❌ Check-in all failed:', result.error);
       }
     } finally {
       setIsCheckingIn(false);
@@ -168,7 +168,7 @@ export const CheckInScreen: React.FC = () => {
         message: `Check my Canary status: https://canary.app/status/${address}`,
       });
     } catch (error) {
-      console.error('Failed to share:', error);
+      // console.error('Failed to share:', error);
     }
   };
 

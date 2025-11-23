@@ -43,7 +43,7 @@ export const SettingsScreen = () => {
       const backend = await AsyncStorage.getItem(STORAGE_BACKEND_KEY);
       if (backend) setStorageBackend(backend as StorageBackend);
     } catch (error) {
-      console.error('Failed to load settings:', error);
+      // console.error('Failed to load settings:', error);
     }
   };
 
@@ -63,7 +63,7 @@ export const SettingsScreen = () => {
       setStorageBackend(backend);
       Alert.alert('Storage Backend Changed', `Storage backend set to ${backend.toUpperCase()}`);
     } catch (error) {
-      console.error('Failed to save storage backend:', error);
+      // console.error('Failed to save storage backend:', error);
       Alert.alert('Error', 'Failed to save storage backend');
     }
   };
@@ -92,7 +92,7 @@ export const SettingsScreen = () => {
                 Alert.alert('Error', 'Failed to export private key');
               }
             } catch (error) {
-              console.error('Failed to export private key:', error);
+              // console.error('Failed to export private key:', error);
               Alert.alert('Error', 'Failed to export private key');
             }
           },
@@ -121,7 +121,7 @@ export const SettingsScreen = () => {
               await disconnect();
               Alert.alert('Wallet Burned', 'Your wallet has been permanently deleted');
             } catch (error) {
-              console.error('Failed to burn wallet:', error);
+              // console.error('Failed to burn wallet:', error);
               Alert.alert('Error', 'Failed to delete wallet');
             }
           },
@@ -149,7 +149,7 @@ export const SettingsScreen = () => {
               await AsyncStorage.multiRemove(keysToRemove);
               Alert.alert('Data Cleared', 'Local data has been cleared');
             } catch (error) {
-              console.error('Failed to clear data:', error);
+              // console.error('Failed to clear data:', error);
               Alert.alert('Error', 'Failed to clear local data');
             }
           },

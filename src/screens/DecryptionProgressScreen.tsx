@@ -89,7 +89,7 @@ export const DecryptionProgressScreen = () => {
       await RNFS.mkdir(dossierDir, { NSURLIsExcludedFromBackupKey: false });
 
       // Step 1: Decrypt manifest (first hash)
-      console.log('📋 Decrypting manifest...');
+      // console.log('📋 Decrypting manifest...');
       const manifestHash = encryptedFileHashes[0];
       const encryptedManifest = await retrieveFromPinata(manifestHash);
       const decryptedManifest = await decryptFile(encryptedManifest);
@@ -101,8 +101,8 @@ export const DecryptionProgressScreen = () => {
       }
       const manifest: DossierManifest = JSON.parse(manifestJson);
 
-      console.log('✅ Manifest decrypted:', manifest);
-      console.log(`📄 Found ${manifest.files.length} files in manifest`);
+      // console.log('✅ Manifest decrypted:', manifest);
+      // console.log(`📄 Found ${manifest.files.length} files in manifest`);
 
       // Step 2: Initialize file list with metadata from manifest
       const initialFiles: DecryptedFile[] = manifest.files.map((fileEntry, index) => ({
@@ -142,16 +142,16 @@ export const DecryptionProgressScreen = () => {
             localPath: decryptedPath,
           });
 
-          console.log(`✅ Decrypted: ${fileEntry.name}`);
+          // console.log(`✅ Decrypted: ${fileEntry.name}`);
         } catch (error: any) {
-          console.error(`❌ Failed to decrypt ${fileEntry.name}:`, error);
+          // console.error(`❌ Failed to decrypt ${fileEntry.name}:`, error);
           updateFileStatus(i, { status: 'failed', progress: 0, error: error.message || 'Unknown error' });
         }
       }
 
       setIsDecrypting(false);
     } catch (error: any) {
-      console.error('❌ Failed to decrypt manifest or files:', error);
+      // console.error('❌ Failed to decrypt manifest or files:', error);
       setIsLoadingManifest(false);
       setIsDecrypting(false);
       Alert.alert('Error', 'Failed to decrypt dossier files. Please try again.');
@@ -223,7 +223,7 @@ export const DecryptionProgressScreen = () => {
       });
     } catch (error: any) {
       if (error.message !== 'User did not share') {
-        console.error('Failed to open file:', error);
+        // console.error('Failed to open file:', error);
         Alert.alert('Error', `Failed to open ${file.fileName}`);
       }
     }

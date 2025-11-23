@@ -30,13 +30,13 @@ export const LoginScreen = ({ navigation }: any) => {
 
   const checkForLocalAccount = async () => {
     try {
-      console.log('🔍 LoginScreen: Checking for local account...');
+      // console.log('🔍 LoginScreen: Checking for local account...');
       // Check for PIN-protected wallet
       const hasWallet = await pinWalletService.hasWallet();
-      console.log('🔍 LoginScreen: hasWallet =', hasWallet);
+      // console.log('🔍 LoginScreen: hasWallet =', hasWallet);
       if (hasWallet) {
         const address = await pinWalletService.getWalletAddress();
-        console.log('🔍 LoginScreen: wallet address =', address);
+        // console.log('🔍 LoginScreen: wallet address =', address);
         if (address) {
           setLocalAccount(address);
         } else {
@@ -46,7 +46,7 @@ export const LoginScreen = ({ navigation }: any) => {
         setLocalAccount(null);
       }
     } catch (error) {
-      console.log('🔍 LoginScreen: No accessible local account found', error);
+      // console.log('🔍 LoginScreen: No accessible local account found', error);
       setLocalAccount(null);
     } finally {
       setIsCheckingAccount(false);

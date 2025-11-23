@@ -111,16 +111,16 @@ export const DossierProvider: React.FC<DossierProviderProps> = ({ children }) =>
     try {
       setIsLoading(true);
       setError(null);
-      console.log('📖 Loading dossiers for:', address);
+      // console.log('📖 Loading dossiers for:', address);
 
       const userDossiers = await contractService.getUserDossiers(address);
       setDossiers(userDossiers);
 
-      console.log(`✅ Loaded ${userDossiers.length} dossiers`);
+      // console.log(`✅ Loaded ${userDossiers.length} dossiers`);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load dossiers';
       setError(errorMessage);
-      console.error('❌ Failed to load dossiers:', err);
+      // console.error('❌ Failed to load dossiers:', err);
     } finally {
       setIsLoading(false);
     }
@@ -145,7 +145,7 @@ export const DossierProvider: React.FC<DossierProviderProps> = ({ children }) =>
     try {
       setIsLoading(true);
       setError(null);
-      console.log('📝 Creating dossier:', name);
+      // console.log('📝 Creating dossier:', name);
 
       // Get signer
       const signer = await getSigner();
@@ -154,10 +154,10 @@ export const DossierProvider: React.FC<DossierProviderProps> = ({ children }) =>
       }
 
       // Step 1: Get next dossier ID by querying current user dossiers
-      console.log('🔍 Querying for next dossier ID...');
+      // console.log('🔍 Querying for next dossier ID...');
       const currentDossierIds = await contractService.getUserDossierIds(address);
       const nextDossierId = BigInt(currentDossierIds.length);
-      console.log(`📋 Next dossier ID will be: ${nextDossierId.toString()}`);
+      // console.log(`📋 Next dossier ID will be: ${nextDossierId.toString()}`);
 
       // Step 2: Encrypt files with TACo using the predicted dossier ID
       const encryptedFiles: CommitResult[] = [];
@@ -167,10 +167,10 @@ export const DossierProvider: React.FC<DossierProviderProps> = ({ children }) =>
       // Public release: no recipients specified (will default to user's address on-chain)
       // Private release: specific recipients provided
       const releaseMode: 'public' | 'private' = recipients.length === 0 ? 'public' : 'private';
-      console.log(`🔓 Release Mode: ${releaseMode}`);
+      // console.log(`🔓 Release Mode: ${releaseMode}`);
 
       for (const file of files) {
-        console.log(`🔐 Encrypting file: ${file.name}`);
+        // console.log(`🔐 Encrypting file: ${file.name}`);
 
         // Read file data
         const fileData = await readFileData(file);
@@ -206,7 +206,7 @@ export const DossierProvider: React.FC<DossierProviderProps> = ({ children }) =>
 
       // Step 2.5: Build and encrypt manifest with file metadata
       // Manifest format matches web app for cross-platform compatibility
-      console.log('📋 Building manifest with file metadata...');
+      // console.log('📋 Building manifest with file metadata...');
 
       const manifestFiles: DossierManifestFile[] = files.map((file, index) => {
         const cid = encryptedFiles[index].pinataCid!;
@@ -231,7 +231,7 @@ export const DossierProvider: React.FC<DossierProviderProps> = ({ children }) =>
       };
 
       // Encrypt manifest as JSON file
-      console.log('🔐 Encrypting manifest...');
+      // console.log('🔐 Encrypting manifest...');
       const manifestJson = JSON.stringify(manifest);
       const manifestBytes = new TextEncoder().encode(manifestJson);
 
@@ -255,7 +255,7 @@ export const DossierProvider: React.FC<DossierProviderProps> = ({ children }) =>
       );
 
       const { commitResult: manifestCommit } = await commitEncryptedFileToPinata(manifestEncryptionResult);
-      console.log('✅ Manifest encrypted and uploaded:', manifestCommit.pinataCid);
+      // console.log('✅ Manifest encrypted and uploaded:', manifestCommit.pinataCid);
 
       // Step 3: Create dossier on-chain with manifest hash first, then file hashes
       const encryptedFileHashes = [
@@ -268,7 +268,7 @@ export const DossierProvider: React.FC<DossierProviderProps> = ({ children }) =>
       // For public releases: include only user's own address
       // For private releases: include user's address + specified recipients
       const finalRecipients = [address, ...recipients]; // Always include user, then add additional recipients
-      console.log(`📋 Final recipients (${releaseMode}):`, recipients.length === 0 ? `Public - Owner only [${address}]` : `Private - Owner + ${recipients.length} contacts`);
+      // console.log(`📋 Final recipients (${releaseMode}):`, recipients.length === 0 ? `Public - Owner only [${address}]` : `Private - Owner + ${recipients.length} contacts`);
 
       const result = await contractService.createDossier(
         name,
@@ -282,7 +282,7 @@ export const DossierProvider: React.FC<DossierProviderProps> = ({ children }) =>
       );
 
       if (result.success && result.dossierId) {
-        console.log('🎉 Dossier created successfully:', result.dossierId.toString());
+        // console.log('🎉 Dossier created successfully:', result.dossierId.toString());
 
         // Reload dossiers
         await loadDossiers();
@@ -294,7 +294,7 @@ export const DossierProvider: React.FC<DossierProviderProps> = ({ children }) =>
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to create dossier';
       setError(errorMessage);
-      console.error('❌ Failed to create dossier:', err);
+      // console.error('❌ Failed to create dossier:', err);
       return { success: false, error: errorMessage };
     } finally {
       setIsLoading(false);
@@ -308,7 +308,7 @@ export const DossierProvider: React.FC<DossierProviderProps> = ({ children }) =>
     try {
       setIsLoading(true);
       setError(null);
-      console.log('✓ Checking in to dossier:', dossierId.toString());
+      // console.log('✓ Checking in to dossier:', dossierId.toString());
 
       const signer = await getSigner();
       if (!signer) {
@@ -318,7 +318,7 @@ export const DossierProvider: React.FC<DossierProviderProps> = ({ children }) =>
       const result = await contractService.checkIn(dossierId, signer);
 
       if (result.success) {
-        console.log('✅ Check-in successful');
+        // console.log('✅ Check-in successful');
         // Reload dossiers to update lastCheckIn timestamp
         await loadDossiers();
         return { success: true };
@@ -328,7 +328,7 @@ export const DossierProvider: React.FC<DossierProviderProps> = ({ children }) =>
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to check in';
       setError(errorMessage);
-      console.error('❌ Failed to check in:', err);
+      // console.error('❌ Failed to check in:', err);
       return { success: false, error: errorMessage };
     } finally {
       setIsLoading(false);
@@ -342,7 +342,7 @@ export const DossierProvider: React.FC<DossierProviderProps> = ({ children }) =>
     try {
       setIsLoading(true);
       setError(null);
-      console.log('✓ Checking in to all dossiers');
+      // console.log('✓ Checking in to all dossiers');
 
       const signer = await getSigner();
       if (!signer) {
@@ -352,7 +352,7 @@ export const DossierProvider: React.FC<DossierProviderProps> = ({ children }) =>
       const result = await contractService.checkInAll(signer);
 
       if (result.success) {
-        console.log('✅ Check-in all successful');
+        // console.log('✅ Check-in all successful');
         await loadDossiers();
         return { success: true };
       } else {
@@ -361,7 +361,7 @@ export const DossierProvider: React.FC<DossierProviderProps> = ({ children }) =>
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to check in all';
       setError(errorMessage);
-      console.error('❌ Failed to check in all:', err);
+      // console.error('❌ Failed to check in all:', err);
       return { success: false, error: errorMessage };
     } finally {
       setIsLoading(false);
@@ -529,11 +529,11 @@ export const DossierProvider: React.FC<DossierProviderProps> = ({ children }) =>
 
     try {
       setGuardianDossiersLoading(true);
-      console.log('🛡️ Loading guardian dossiers for:', address);
+      // console.log('🛡️ Loading guardian dossiers for:', address);
 
       // Get all dossiers where user is a guardian
       const references = await contractService.getDossiersWhereGuardian(address);
-      console.log(`📋 Found ${references.length} dossiers where user is guardian`);
+      // console.log(`📋 Found ${references.length} dossiers where user is guardian`);
 
       // Fetch full dossier details for each reference
       const guardianDossiersData: GuardianDossier[] = [];
@@ -570,7 +570,7 @@ export const DossierProvider: React.FC<DossierProviderProps> = ({ children }) =>
             });
           }
         } catch (err) {
-          console.error(`❌ Failed to load dossier ${ref.dossierId.toString()}:`, err);
+          // console.error(`❌ Failed to load dossier ${ref.dossierId.toString()}:`, err);
         }
       }
 
@@ -585,9 +585,9 @@ export const DossierProvider: React.FC<DossierProviderProps> = ({ children }) =>
       });
 
       setGuardianDossiers(guardianDossiersData);
-      console.log(`✅ Loaded ${guardianDossiersData.length} guardian dossiers`);
+      // console.log(`✅ Loaded ${guardianDossiersData.length} guardian dossiers`);
     } catch (err) {
-      console.error('❌ Failed to load guardian dossiers:', err);
+      // console.error('❌ Failed to load guardian dossiers:', err);
     } finally {
       setGuardianDossiersLoading(false);
     }
@@ -605,12 +605,12 @@ export const DossierProvider: React.FC<DossierProviderProps> = ({ children }) =>
         return { success: false, error: 'Failed to get signer' };
       }
 
-      console.log(`🛡️ Confirming release for dossier ${dossierId.toString()}`);
+      // console.log(`🛡️ Confirming release for dossier ${dossierId.toString()}`);
 
       const result = await contractService.confirmRelease(ownerAddress, dossierId, signer);
 
       if (result.success) {
-        console.log('✅ Release confirmed successfully');
+        // console.log('✅ Release confirmed successfully');
 
         // Reload guardian dossiers to reflect the change
         await loadGuardianDossiers();
@@ -621,7 +621,7 @@ export const DossierProvider: React.FC<DossierProviderProps> = ({ children }) =>
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to confirm release';
-      console.error('❌ Failed to confirm release:', err);
+      // console.error('❌ Failed to confirm release:', err);
       return { success: false, error: errorMessage };
     } finally {
       setGuardianDossiersLoading(false);
@@ -640,8 +640,8 @@ export const DossierProvider: React.FC<DossierProviderProps> = ({ children }) =>
    */
   const readFileData = async (file: FileInfo): Promise<Uint8Array> => {
     try {
-      console.log(`📂 Reading file: ${file.name} (${file.size} bytes)`);
-      console.log(`📍 URI: ${file.uri}`);
+      // console.log(`📂 Reading file: ${file.name} (${file.size} bytes)`);
+      // console.log(`📍 URI: ${file.uri}`);
 
       let filePath = file.uri;
 
@@ -650,11 +650,11 @@ export const DossierProvider: React.FC<DossierProviderProps> = ({ children }) =>
       // iOS: file:// URIs or absolute paths
       if (filePath.startsWith('content://')) {
         // Android content URI - use directly with RNFS
-        console.log('📱 Detected Android content URI');
+        // console.log('📱 Detected Android content URI');
       } else if (filePath.startsWith('file://')) {
         // iOS file URI - remove prefix
         filePath = filePath.substring(7);
-        console.log('🍎 Detected iOS file URI');
+        // console.log('🍎 Detected iOS file URI');
       }
 
       // For content:// URIs, RNFS handles them directly
@@ -676,10 +676,10 @@ export const DossierProvider: React.FC<DossierProviderProps> = ({ children }) =>
         bytes[i] = binaryString.charCodeAt(i);
       }
 
-      console.log(`✅ File read successfully: ${bytes.length} bytes`);
+      // console.log(`✅ File read successfully: ${bytes.length} bytes`);
       return bytes;
     } catch (error) {
-      console.error(`❌ Failed to read file ${file.name}:`, error);
+      // console.error(`❌ Failed to read file ${file.name}:`, error);
       throw new Error(`Failed to read file: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };

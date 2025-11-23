@@ -79,7 +79,7 @@ export const PINEntryScreen: React.FC = () => {
         }
       }
     } catch (err) {
-      console.error('PIN unlock error:', err);
+      // console.error('PIN unlock error:', err);
       setError('An error occurred. Please try again.');
     } finally {
       setLoading(false);
@@ -90,7 +90,7 @@ export const PINEntryScreen: React.FC = () => {
    * Handle forgot PIN
    */
   const handleForgotPin = () => {
-    console.log('Forgot PIN button pressed');
+    // console.log('Forgot PIN button pressed');
     Alert.alert(
       'Reset Wallet?',
       'If you forgot your PIN, you must reset your wallet. This will delete your current wallet and you will need to create a new one or import an existing one.\n\nThis action cannot be undone.',
@@ -104,12 +104,12 @@ export const PINEntryScreen: React.FC = () => {
           style: 'destructive',
           onPress: async () => {
             try {
-              console.log('Resetting wallet...');
+              // console.log('Resetting wallet...');
               await resetWallet();
-              console.log('Wallet reset successful');
+              // console.log('Wallet reset successful');
               // Navigation will be handled by the context automatically
             } catch (error) {
-              console.error('Reset wallet error:', error);
+              // console.error('Reset wallet error:', error);
               Alert.alert('Error', 'Failed to reset wallet. Please try again.');
             }
           },

@@ -69,10 +69,10 @@ export const DossierCreationProgressScreen = () => {
   }, []);
 
   useEffect(() => {
-    console.log('🟢 DossierCreationProgressScreen mounted');
+    // console.log('🟢 DossierCreationProgressScreen mounted');
     // Small delay to ensure screen is visible before starting
     const timer = setTimeout(() => {
-      console.log('🟢 Starting creation process...');
+      // console.log('🟢 Starting creation process...');
       startCreation();
     }, 300);
     return () => clearTimeout(timer);
@@ -139,7 +139,7 @@ export const DossierCreationProgressScreen = () => {
         setError(result.error || 'Failed to create dossier');
       }
     } catch (err: any) {
-      console.error('Creation error:', err);
+      // console.error('Creation error:', err);
       setCurrentStep('failed');
       setError(err.message || 'An unexpected error occurred');
     }
@@ -192,8 +192,8 @@ export const DossierCreationProgressScreen = () => {
 
   const stepInfo = getStepInfo(currentStep);
 
-  console.log('🟢 DossierCreationProgressScreen rendering, currentStep:', currentStep);
-  console.log('🟢 stepInfo:', stepInfo);
+  // console.log('🟢 DossierCreationProgressScreen rendering, currentStep:', currentStep);
+  // console.log('🟢 stepInfo:', stepInfo);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>

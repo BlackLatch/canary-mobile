@@ -19,9 +19,9 @@ class ContractService {
 
   constructor() {
     this.provider = new ethers.providers.JsonRpcProvider(STATUS_SEPOLIA.rpcUrl);
-    console.log('📜 Contract service initialized (V3 with Guardian support)');
-    console.log('📍 Network:', STATUS_SEPOLIA.name);
-    console.log('📍 Contract:', DOSSIER_CONTRACT_ADDRESS);
+    // console.log('📜 Contract service initialized (V3 with Guardian support)');
+    // console.log('📍 Network:', STATUS_SEPOLIA.name);
+    // console.log('📍 Contract:', DOSSIER_CONTRACT_ADDRESS);
   }
 
   /**
@@ -73,7 +73,7 @@ class ContractService {
    */
   async getDossier(userAddress: Address, dossierId: bigint): Promise<Dossier | null> {
     try {
-      console.log(`📖 Reading dossier ${dossierId.toString()} for ${userAddress}`);
+      // console.log(`📖 Reading dossier ${dossierId.toString()} for ${userAddress}`);
 
       const contract = this.getContract();
       const result = await contract.getDossier(userAddress, dossierId);
@@ -95,13 +95,13 @@ class ContractService {
         guardianConfirmationCount: result.guardianConfirmationCount || BigInt(0),
       };
 
-      console.log(`✅ Dossier loaded:`, dossier.name);
+      // console.log(`✅ Dossier loaded:`, dossier.name);
       if (dossier.guardians.length > 0) {
-        console.log(`🛡️ Guardian protection: ${dossier.guardianConfirmationCount}/${dossier.guardianThreshold} confirmations`);
+        // console.log(`🛡️ Guardian protection: ${dossier.guardianConfirmationCount}/${dossier.guardianThreshold} confirmations`);
       }
       return dossier;
     } catch (error) {
-      console.error('❌ Failed to get dossier:', error);
+      // console.error('❌ Failed to get dossier:', error);
       return null;
     }
   }
@@ -111,15 +111,15 @@ class ContractService {
    */
   async getUserDossierIds(userAddress: Address): Promise<bigint[]> {
     try {
-      console.log(`📖 Reading dossier IDs for ${userAddress}`);
+      // console.log(`📖 Reading dossier IDs for ${userAddress}`);
 
       const contract = this.getContract();
       const ids = await contract.getUserDossierIds(userAddress);
 
-      console.log(`✅ Found ${ids.length} dossiers`);
+      // console.log(`✅ Found ${ids.length} dossiers`);
       return ids;
     } catch (error) {
-      console.error('❌ Failed to get dossier IDs:', error);
+      // console.error('❌ Failed to get dossier IDs:', error);
       return [];
     }
   }
@@ -141,7 +141,7 @@ class ContractService {
 
       return dossiers;
     } catch (error) {
-      console.error('❌ Failed to get user dossiers:', error);
+      // console.error('❌ Failed to get user dossiers:', error);
       return [];
     }
   }
@@ -155,10 +155,10 @@ class ContractService {
       const contract = this.getContract();
       const shouldStayEncrypted = await contract.shouldDossierStayEncrypted(userAddress, dossierId);
 
-      console.log(`🔐 Dossier ${dossierId.toString()} should stay encrypted:`, shouldStayEncrypted);
+      // console.log(`🔐 Dossier ${dossierId.toString()} should stay encrypted:`, shouldStayEncrypted);
       return shouldStayEncrypted;
     } catch (error) {
-      console.error('❌ Failed to check encryption status:', error);
+      // console.error('❌ Failed to check encryption status:', error);
       return true; // Default to keeping encrypted on error
     }
   }
@@ -172,18 +172,18 @@ class ContractService {
    */
   async getDossiersWhereGuardian(guardianAddress: Address): Promise<DossierReference[]> {
     try {
-      console.log(`🛡️ Fetching dossiers where ${guardianAddress} is guardian`);
+      // console.log(`🛡️ Fetching dossiers where ${guardianAddress} is guardian`);
 
       const contract = this.getContract();
       const references = await contract.getDossiersWhereGuardian(guardianAddress);
 
-      console.log(`✅ Found ${references.length} dossiers`);
+      // console.log(`✅ Found ${references.length} dossiers`);
       return references.map((ref: any) => ({
         owner: ref.owner,
         dossierId: ref.dossierId,
       }));
     } catch (error) {
-      console.error('❌ Failed to get guardian dossiers:', error);
+      // console.error('❌ Failed to get guardian dossiers:', error);
       return [];
     }
   }
@@ -196,10 +196,10 @@ class ContractService {
       const contract = this.getContract();
       const isMet = await contract.isGuardianThresholdMet(ownerAddress, dossierId);
 
-      console.log(`🛡️ Guardian threshold met for dossier ${dossierId.toString()}:`, isMet);
+      // console.log(`🛡️ Guardian threshold met for dossier ${dossierId.toString()}:`, isMet);
       return isMet;
     } catch (error) {
-      console.error('❌ Failed to check guardian threshold:', error);
+      // console.error('❌ Failed to check guardian threshold:', error);
       return false;
     }
   }
@@ -216,10 +216,10 @@ class ContractService {
       const contract = this.getContract();
       const hasConfirmed = await contract.hasGuardianConfirmed(ownerAddress, dossierId, guardianAddress);
 
-      console.log(`🛡️ Guardian ${guardianAddress} confirmed dossier ${dossierId.toString()}:`, hasConfirmed);
+      // console.log(`🛡️ Guardian ${guardianAddress} confirmed dossier ${dossierId.toString()}:`, hasConfirmed);
       return hasConfirmed;
     } catch (error) {
-      console.error('❌ Failed to check guardian confirmation:', error);
+      // console.error('❌ Failed to check guardian confirmation:', error);
       return false;
     }
   }
@@ -229,18 +229,18 @@ class ContractService {
    */
   async getDossiersWhereRecipient(recipientAddress: Address): Promise<DossierReference[]> {
     try {
-      console.log(`👤 Fetching dossiers where ${recipientAddress} is a recipient`);
+      // console.log(`👤 Fetching dossiers where ${recipientAddress} is a recipient`);
 
       const contract = this.getContract();
       const references = await contract.getDossiersWhereRecipient(recipientAddress);
 
-      console.log(`✅ Found ${references.length} dossiers`);
+      // console.log(`✅ Found ${references.length} dossiers`);
       return references.map((ref: any) => ({
         owner: ref.owner,
         dossierId: ref.dossierId,
       }));
     } catch (error) {
-      console.error('❌ Failed to get recipient dossiers:', error);
+      // console.error('❌ Failed to get recipient dossiers:', error);
       return [];
     }
   }
@@ -258,8 +258,8 @@ class ContractService {
     signer: ethers.Signer
   ): Promise<{ success: boolean; txHash?: string; error?: string }> {
     try {
-      console.log(`🛡️ Guardian confirming release for dossier ${dossierId.toString()}`);
-      console.log(`📍 Owner: ${ownerAddress}`);
+      // console.log(`🛡️ Guardian confirming release for dossier ${dossierId.toString()}`);
+      // console.log(`📍 Owner: ${ownerAddress}`);
 
       const contract = this.getContractWithSigner(signer);
 
@@ -267,17 +267,17 @@ class ContractService {
         gasLimit: 200000,
         gasPrice: 0,
       });
-      console.log('⏳ Transaction sent:', tx.hash);
+      // console.log('⏳ Transaction sent:', tx.hash);
 
       const receipt = await tx.wait();
-      console.log('✅ Release confirmed in block:', receipt.blockNumber);
+      // console.log('✅ Release confirmed in block:', receipt.blockNumber);
 
       return {
         success: true,
         txHash: receipt.transactionHash,
       };
     } catch (error) {
-      console.error('❌ Failed to confirm release:', error);
+      // console.error('❌ Failed to confirm release:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -299,16 +299,16 @@ class ContractService {
     guardianThreshold: number = 0
   ): Promise<{ success: boolean; dossierId?: bigint; txHash?: string; error?: string }> {
     try {
-      console.log('📝 Creating dossier:', name);
-      console.log('- Description:', description);
-      console.log('- Check-in interval:', checkInInterval.toString(), 'seconds');
-      console.log('- Recipients:', recipients.length);
-      console.log('- Files:', encryptedFileHashes.length);
+      // console.log('📝 Creating dossier:', name);
+      // console.log('- Description:', description);
+      // console.log('- Check-in interval:', checkInInterval.toString(), 'seconds');
+      // console.log('- Recipients:', recipients.length);
+      // console.log('- Files:', encryptedFileHashes.length);
 
       if (guardians.length > 0) {
-        console.log('🛡️ Guardian protection enabled');
-        console.log('- Guardians:', guardians.length);
-        console.log('- Threshold:', guardianThreshold);
+        // console.log('🛡️ Guardian protection enabled');
+        // console.log('- Guardians:', guardians.length);
+        // console.log('- Threshold:', guardianThreshold);
       }
 
       const contract = this.getContractWithSigner(signer);
@@ -317,9 +317,9 @@ class ContractService {
       const gasLimit = guardians.length > 0 ? 10000000 : 10000000;
 
       // Status Network is fully gasless - explicitly set gas to 0
-      console.log('⛽ Using fully gasless transaction (Status Network)');
-      console.log('📋 Recipients:', recipients);
-      console.log('📋 Guardians:', guardians);
+      // console.log('⛽ Using fully gasless transaction (Status Network)');
+      // console.log('📋 Recipients:', recipients);
+      // console.log('📋 Guardians:', guardians);
 
       const tx = await contract.createDossier(
         name,
@@ -336,17 +336,17 @@ class ContractService {
         }
       );
 
-      console.log('⏳ Transaction sent:', tx.hash);
-      console.log('⏳ Waiting for confirmation...');
+      // console.log('⏳ Transaction sent:', tx.hash);
+      // console.log('⏳ Waiting for confirmation...');
 
       const receipt = await tx.wait();
-      console.log('✅ Transaction confirmed in block:', receipt.blockNumber);
+      // console.log('✅ Transaction confirmed in block:', receipt.blockNumber);
 
       // Parse the DossierCreated event to get the dossier ID
       const event = receipt.events?.find((e: any) => e.event === 'DossierCreated');
       const dossierId = event?.args?.dossierId;
 
-      console.log('🎉 Dossier created with ID:', dossierId?.toString());
+      // console.log('🎉 Dossier created with ID:', dossierId?.toString());
 
       return {
         success: true,
@@ -354,7 +354,7 @@ class ContractService {
         txHash: receipt.transactionHash,
       };
     } catch (error) {
-      console.error('❌ Failed to create dossier:', error);
+      // console.error('❌ Failed to create dossier:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -370,7 +370,7 @@ class ContractService {
     signer: ethers.Signer
   ): Promise<{ success: boolean; txHash?: string; error?: string }> {
     try {
-      console.log('✓ Checking in to dossier:', dossierId.toString());
+      // console.log('✓ Checking in to dossier:', dossierId.toString());
 
       const contract = this.getContractWithSigner(signer);
 
@@ -378,17 +378,17 @@ class ContractService {
         gasLimit: 10000000,
         gasPrice: 0,
       });
-      console.log('⏳ Transaction sent:', tx.hash);
+      // console.log('⏳ Transaction sent:', tx.hash);
 
       const receipt = await tx.wait();
-      console.log('✅ Check-in confirmed in block:', receipt.blockNumber);
+      // console.log('✅ Check-in confirmed in block:', receipt.blockNumber);
 
       return {
         success: true,
         txHash: receipt.transactionHash,
       };
     } catch (error) {
-      console.error('❌ Failed to check in:', error);
+      // console.error('❌ Failed to check in:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -403,7 +403,7 @@ class ContractService {
     signer: ethers.Signer
   ): Promise<{ success: boolean; txHash?: string; error?: string }> {
     try {
-      console.log('✓ Checking in to all dossiers');
+      // console.log('✓ Checking in to all dossiers');
 
       const contract = this.getContractWithSigner(signer);
 
@@ -411,17 +411,17 @@ class ContractService {
         gasLimit: 10000000,
         gasPrice: 0,
       });
-      console.log('⏳ Transaction sent:', tx.hash);
+      // console.log('⏳ Transaction sent:', tx.hash);
 
       const receipt = await tx.wait();
-      console.log('✅ Check-in all confirmed in block:', receipt.blockNumber);
+      // console.log('✅ Check-in all confirmed in block:', receipt.blockNumber);
 
       return {
         success: true,
         txHash: receipt.transactionHash,
       };
     } catch (error) {
-      console.error('❌ Failed to check in all:', error);
+      // console.error('❌ Failed to check in all:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -437,7 +437,7 @@ class ContractService {
     signer: ethers.Signer
   ): Promise<{ success: boolean; txHash?: string; error?: string }> {
     try {
-      console.log('⏸️ Pausing dossier:', dossierId.toString());
+      // console.log('⏸️ Pausing dossier:', dossierId.toString());
 
       const contract = this.getContractWithSigner(signer);
 
@@ -445,17 +445,17 @@ class ContractService {
         gasLimit: 10000000,
         gasPrice: 0,
       });
-      console.log('⏳ Transaction sent:', tx.hash);
+      // console.log('⏳ Transaction sent:', tx.hash);
 
       const receipt = await tx.wait();
-      console.log('✅ Dossier paused in block:', receipt.blockNumber);
+      // console.log('✅ Dossier paused in block:', receipt.blockNumber);
 
       return {
         success: true,
         txHash: receipt.transactionHash,
       };
     } catch (error) {
-      console.error('❌ Failed to pause dossier:', error);
+      // console.error('❌ Failed to pause dossier:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -471,7 +471,7 @@ class ContractService {
     signer: ethers.Signer
   ): Promise<{ success: boolean; txHash?: string; error?: string }> {
     try {
-      console.log('▶️ Resuming dossier:', dossierId.toString());
+      // console.log('▶️ Resuming dossier:', dossierId.toString());
 
       const contract = this.getContractWithSigner(signer);
 
@@ -479,17 +479,17 @@ class ContractService {
         gasLimit: 10000000,
         gasPrice: 0,
       });
-      console.log('⏳ Transaction sent:', tx.hash);
+      // console.log('⏳ Transaction sent:', tx.hash);
 
       const receipt = await tx.wait();
-      console.log('✅ Dossier resumed in block:', receipt.blockNumber);
+      // console.log('✅ Dossier resumed in block:', receipt.blockNumber);
 
       return {
         success: true,
         txHash: receipt.transactionHash,
       };
     } catch (error) {
-      console.error('❌ Failed to resume dossier:', error);
+      // console.error('❌ Failed to resume dossier:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -505,7 +505,7 @@ class ContractService {
     signer: ethers.Signer
   ): Promise<{ success: boolean; txHash?: string; error?: string }> {
     try {
-      console.log('🚨 Releasing dossier immediately:', dossierId.toString());
+      // console.log('🚨 Releasing dossier immediately:', dossierId.toString());
 
       const contract = this.getContractWithSigner(signer);
 
@@ -513,17 +513,17 @@ class ContractService {
         gasLimit: 10000000,
         gasPrice: 0,
       });
-      console.log('⏳ Transaction sent:', tx.hash);
+      // console.log('⏳ Transaction sent:', tx.hash);
 
       const receipt = await tx.wait();
-      console.log('✅ Dossier released in block:', receipt.blockNumber);
+      // console.log('✅ Dossier released in block:', receipt.blockNumber);
 
       return {
         success: true,
         txHash: receipt.transactionHash,
       };
     } catch (error) {
-      console.error('❌ Failed to release dossier:', error);
+      // console.error('❌ Failed to release dossier:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -539,7 +539,7 @@ class ContractService {
     signer: ethers.Signer
   ): Promise<{ success: boolean; txHash?: string; error?: string }> {
     try {
-      console.log('🛑 Permanently disabling dossier:', dossierId.toString());
+      // console.log('🛑 Permanently disabling dossier:', dossierId.toString());
 
       const contract = this.getContractWithSigner(signer);
 
@@ -547,17 +547,17 @@ class ContractService {
         gasLimit: 10000000,
         gasPrice: 0,
       });
-      console.log('⏳ Transaction sent:', tx.hash);
+      // console.log('⏳ Transaction sent:', tx.hash);
 
       const receipt = await tx.wait();
-      console.log('✅ Dossier permanently disabled in block:', receipt.blockNumber);
+      // console.log('✅ Dossier permanently disabled in block:', receipt.blockNumber);
 
       return {
         success: true,
         txHash: receipt.transactionHash,
       };
     } catch (error) {
-      console.error('❌ Failed to permanently disable dossier:', error);
+      // console.error('❌ Failed to permanently disable dossier:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -581,8 +581,8 @@ class ContractService {
     signer: ethers.Signer
   ): Promise<{ success: boolean; txHash?: string; error?: string }> {
     try {
-      console.log('⏱️ Updating check-in interval for dossier:', dossierId.toString());
-      console.log('⏱️ New interval:', newInterval.toString(), 'seconds');
+      // console.log('⏱️ Updating check-in interval for dossier:', dossierId.toString());
+      // console.log('⏱️ New interval:', newInterval.toString(), 'seconds');
 
       const contract = this.getContractWithSigner(signer);
 
@@ -590,17 +590,17 @@ class ContractService {
         gasLimit: 10000000,
         gasPrice: 0,
       });
-      console.log('⏳ Transaction sent:', tx.hash);
+      // console.log('⏳ Transaction sent:', tx.hash);
 
       const receipt = await tx.wait();
-      console.log('✅ Check-in interval updated in block:', receipt.blockNumber);
+      // console.log('✅ Check-in interval updated in block:', receipt.blockNumber);
 
       return {
         success: true,
         txHash: receipt.transactionHash,
       };
     } catch (error) {
-      console.error('❌ Failed to update check-in interval:', error);
+      // console.error('❌ Failed to update check-in interval:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',

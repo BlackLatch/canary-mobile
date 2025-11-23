@@ -293,9 +293,9 @@ export class PinWalletService {
       try {
         const legacyCheck = await Keychain.getInternetCredentials(CANARY_ETH_KEY_BUNDLE);
         if (legacyCheck) {
-          console.log('🧹 Found legacy wallet, clearing it...');
+          // console.log('🧹 Found legacy wallet, clearing it...');
           await Keychain.resetInternetCredentials(CANARY_ETH_KEY_BUNDLE);
-          console.log('✅ Legacy wallet cleared');
+          // console.log('✅ Legacy wallet cleared');
         }
       } catch (e) {
         // Ignore errors from legacy cleanup
@@ -328,21 +328,21 @@ export class PinWalletService {
    */
   async resetWallet(): Promise<void> {
     try {
-      console.log('🧹 Resetting wallet - clearing keychain...');
+      // console.log('🧹 Resetting wallet - clearing keychain...');
 
       // Clear new API
       const result = await Keychain.resetGenericPassword({
         service: CANARY_ETH_KEY_BUNDLE,
       });
-      console.log('🧹 GenericPassword reset result:', result);
+      // console.log('🧹 GenericPassword reset result:', result);
 
       // Also clear old API to ensure complete cleanup
       await Keychain.resetInternetCredentials(CANARY_ETH_KEY_BUNDLE);
-      console.log('🧹 InternetCredentials cleared (cleanup)');
+      // console.log('🧹 InternetCredentials cleared (cleanup)');
 
-      console.log('✅ Wallet reset complete');
+      // console.log('✅ Wallet reset complete');
     } catch (error) {
-      console.log('🧹 Reset completed:', error);
+      // console.log('🧹 Reset completed:', error);
     }
   }
 
@@ -405,7 +405,7 @@ export class PinWalletService {
         }
       );
     } catch (error) {
-      console.error('Failed to store bundle in keychain:', error);
+      // console.error('Failed to store bundle in keychain:', error);
       // Throw a more user-friendly error
       throw new Error('Failed to securely store wallet. Please try again.');
     }
@@ -425,7 +425,7 @@ export class PinWalletService {
       const bundle = JSON.parse(credentials.password) as EncryptedKeyBundle;
       return bundle;
     } catch (error) {
-      console.error('Failed to load bundle from keychain:', error);
+      // console.error('Failed to load bundle from keychain:', error);
       // Return null instead of throwing to allow graceful handling
       return null;
     }

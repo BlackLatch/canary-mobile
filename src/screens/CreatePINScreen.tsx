@@ -76,9 +76,9 @@ export const CreatePINScreen: React.FC<CreatePINScreenProps> = ({ navigation, ro
    * Handle PIN confirmation
    */
   const handleConfirmPin = async (pin: string) => {
-    console.log('handleConfirmPin called with pin length:', pin.length);
-    console.log('First PIN length:', firstPin.length);
-    console.log('PINs match:', pin === firstPin);
+    // console.log('handleConfirmPin called with pin length:', pin.length);
+    // console.log('First PIN length:', firstPin.length);
+    // console.log('PINs match:', pin === firstPin);
 
     if (pin !== firstPin) {
       setError('PINs do not match. Please try again.');
@@ -92,21 +92,21 @@ export const CreatePINScreen: React.FC<CreatePINScreenProps> = ({ navigation, ro
     }
 
     // PINs match - proceed with wallet creation/import
-    console.log('PINs match! Proceeding with mode:', mode);
+    // console.log('PINs match! Proceeding with mode:', mode);
     setLoading(true);
     setError(undefined);
 
     try {
       if (mode === 'create') {
         // Create new wallet with PIN
-        console.log('Creating new PIN-protected wallet...');
+        // console.log('Creating new PIN-protected wallet...');
         await createPinProtectedWallet(pin);
-        console.log('Wallet created successfully');
+        // console.log('Wallet created successfully');
       } else if (mode === 'import' && privateKey) {
         // Import existing wallet with PIN
-        console.log('Importing wallet with PIN...');
+        // console.log('Importing wallet with PIN...');
         await importWalletWithPin(privateKey, pin);
-        console.log('Wallet imported successfully');
+        // console.log('Wallet imported successfully');
       } else if (mode === 'import' && mnemonic) {
         // Convert mnemonic to private key first (if needed)
         // For now, assuming privateKey is provided
@@ -115,14 +115,14 @@ export const CreatePINScreen: React.FC<CreatePINScreenProps> = ({ navigation, ro
 
       // Success - wallet is created and unlocked
       // Navigation will be handled by AuthenticatedApp
-      console.log('Success - wallet operation complete');
+      // console.log('Success - wallet operation complete');
 
       // Clear loading state after successful creation
       // This is critical to prevent the app from hanging with loading modal
       setLoading(false);
       setError(undefined);
     } catch (err: any) {
-      console.error('PIN creation error:', err);
+      // console.error('PIN creation error:', err);
       setError(err.message || 'Failed to create PIN. Please try again.');
       setLoading(false);
     }

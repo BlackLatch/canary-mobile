@@ -101,7 +101,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
    */
   const initializeWallet = async () => {
     try {
-      console.log('🔐 Initializing wallet...');
+      // console.log('🔐 Initializing wallet...');
       setIsLoading(true);
 
       // Check if PIN-protected wallet exists
@@ -113,7 +113,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
           setAddress(walletAddress as Address);
           setIsConnected(true);
           setIsLocked(true); // Start locked, require PIN to unlock
-          console.log('✅ PIN-protected wallet found:', walletAddress);
+          // console.log('✅ PIN-protected wallet found:', walletAddress);
           return;
         }
       }
@@ -122,10 +122,10 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
       const storedType = await AsyncStorage.getItem(WALLET_TYPE_KEY);
       if (storedType === 'burner') {
         // Will be handled by migration service
-        console.log('⚠️ Legacy burner wallet detected - migration needed');
+        // console.log('⚠️ Legacy burner wallet detected - migration needed');
       }
     } catch (error) {
-      console.error('❌ Failed to initialize wallet:', error);
+      // console.error('❌ Failed to initialize wallet:', error);
     } finally {
       setIsLoading(false);
     }
@@ -147,7 +147,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
   const createPinProtectedWallet = async (pin: string) => {
     try {
       setIsConnecting(true);
-      console.log('🔐 Creating PIN-protected wallet...');
+      // console.log('🔐 Creating PIN-protected wallet...');
 
       const { wallet, address: walletAddress } = await pinWalletService.createPinProtectedWallet(pin);
 
@@ -155,7 +155,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
       try {
         await AsyncStorage.setItem(WALLET_TYPE_KEY, 'burner');
       } catch (storageError) {
-        console.error('Failed to save wallet type preference:', storageError);
+        // console.error('Failed to save wallet type preference:', storageError);
         // Don't fail the entire operation if AsyncStorage fails
       }
 
@@ -167,7 +167,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
       setIsConnected(true);
       setIsLocked(false);
 
-      console.log('✅ PIN-protected wallet created:', walletAddress);
+      // console.log('✅ PIN-protected wallet created:', walletAddress);
 
       // Start session manager
       sessionManager.start();
@@ -175,7 +175,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
       // Load balance
       await refreshBalanceInternal(wallet);
     } catch (error) {
-      console.error('❌ Failed to create PIN-protected wallet:', error);
+      // console.error('❌ Failed to create PIN-protected wallet:', error);
       throw error;
     } finally {
       setIsConnecting(false);
@@ -188,7 +188,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
   const importWalletWithPin = async (privateKey: string, pin: string) => {
     try {
       setIsConnecting(true);
-      console.log('🔐 Importing wallet with PIN protection...');
+      // console.log('🔐 Importing wallet with PIN protection...');
 
       const { wallet, address: walletAddress } = await pinWalletService.importWalletWithPin(privateKey, pin);
 
@@ -196,7 +196,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
       try {
         await AsyncStorage.setItem(WALLET_TYPE_KEY, 'burner');
       } catch (storageError) {
-        console.error('Failed to save wallet type preference:', storageError);
+        // console.error('Failed to save wallet type preference:', storageError);
         // Don't fail the entire operation if AsyncStorage fails
       }
 
@@ -208,7 +208,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
       setIsConnected(true);
       setIsLocked(false);
 
-      console.log('✅ Wallet imported with PIN protection:', walletAddress);
+      // console.log('✅ Wallet imported with PIN protection:', walletAddress);
 
       // Start session manager
       sessionManager.start();
@@ -216,7 +216,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
       // Load balance
       await refreshBalanceInternal(wallet);
     } catch (error) {
-      console.error('❌ Failed to import wallet with PIN:', error);
+      // console.error('❌ Failed to import wallet with PIN:', error);
       throw error;
     } finally {
       setIsConnecting(false);
@@ -228,7 +228,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
    */
   const unlockWithPin = async (pin: string): Promise<boolean> => {
     try {
-      console.log('🔓 Unlocking wallet with PIN...');
+      // console.log('🔓 Unlocking wallet with PIN...');
 
       const wallet = await pinWalletService.unlockWithPin(pin);
       walletRef.current = wallet;
@@ -239,14 +239,14 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
       // Start session manager
       sessionManager.start();
 
-      console.log('✅ Wallet unlocked');
+      // console.log('✅ Wallet unlocked');
 
       // Load balance
       await refreshBalanceInternal(wallet);
 
       return true;
     } catch (error) {
-      console.error('❌ Failed to unlock wallet:', error);
+      // console.error('❌ Failed to unlock wallet:', error);
       return false;
     }
   };
@@ -255,12 +255,12 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
    * Lock wallet (clear from memory)
    */
   const lockWallet = () => {
-    console.log('🔒 Locking wallet...');
+    // console.log('🔒 Locking wallet...');
 
     clearInMemoryWallet();
     setIsLocked(true);
 
-    console.log('✅ Wallet locked');
+    // console.log('✅ Wallet locked');
   };
 
   /**
@@ -268,13 +268,13 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
    */
   const changePin = async (currentPin: string, newPin: string) => {
     try {
-      console.log('🔑 Changing PIN...');
+      // console.log('🔑 Changing PIN...');
 
       await pinWalletService.changePin(currentPin, newPin);
 
-      console.log('✅ PIN changed successfully');
+      // console.log('✅ PIN changed successfully');
     } catch (error) {
-      console.error('❌ Failed to change PIN:', error);
+      // console.error('❌ Failed to change PIN:', error);
       throw error;
     }
   };
@@ -283,7 +283,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
    * Switch to a different account (show login options without deleting wallet)
    */
   const switchAccount = () => {
-    console.log('🔄 Switching account...');
+    // console.log('🔄 Switching account...');
 
     // Lock the wallet (clear memory but keep storage)
     lockWallet();
@@ -291,14 +291,14 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     // Set flag to show login screen instead of PIN screen
     setShowAccountSwitcher(true);
 
-    console.log('✅ Ready to switch accounts');
+    // console.log('✅ Ready to switch accounts');
   };
 
   /**
    * Cancel account switch (go back to PIN entry)
    */
   const cancelAccountSwitch = () => {
-    console.log('🔙 Canceling account switch...');
+    // console.log('🔙 Canceling account switch...');
     setShowAccountSwitcher(false);
   };
 
@@ -307,7 +307,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
    */
   const resetWallet = async () => {
     try {
-      console.log('🔄 Resetting wallet...');
+      // console.log('🔄 Resetting wallet...');
 
       // Clear from secure storage
       await pinWalletService.resetWallet();
@@ -328,9 +328,9 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
       // Stop session manager
       sessionManager.stop();
 
-      console.log('✅ Wallet reset complete - ready for new account creation');
+      // console.log('✅ Wallet reset complete - ready for new account creation');
     } catch (error) {
-      console.error('❌ Failed to reset wallet:', error);
+      // console.error('❌ Failed to reset wallet:', error);
       throw error;
     }
   };
@@ -349,7 +349,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
   const connectWalletConnect = async () => {
     try {
       setIsConnecting(true);
-      console.log('🔗 Connecting WalletConnect...');
+      // console.log('🔗 Connecting WalletConnect...');
 
       // TODO: Implement WalletConnect v2 integration
       throw new Error('WalletConnect not yet implemented');
@@ -361,7 +361,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
       // 4. Store wallet type preference
       // 5. Update state
     } catch (error) {
-      console.error('❌ Failed to connect WalletConnect:', error);
+      // console.error('❌ Failed to connect WalletConnect:', error);
       throw error;
     } finally {
       setIsConnecting(false);
@@ -374,7 +374,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
   const connectEmbeddedWallet = async () => {
     try {
       setIsConnecting(true);
-      console.log('🔐 Connecting embedded wallet...');
+      // console.log('🔐 Connecting embedded wallet...');
 
       // TODO: Implement Magic/Privy integration
       throw new Error('Embedded wallet not yet implemented');
@@ -386,7 +386,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
       // 4. Store wallet type preference
       // 5. Update state
     } catch (error) {
-      console.error('❌ Failed to connect embedded wallet:', error);
+      // console.error('❌ Failed to connect embedded wallet:', error);
       throw error;
     } finally {
       setIsConnecting(false);
@@ -398,7 +398,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
    */
   const disconnect = async () => {
     try {
-      console.log('🔌 Disconnecting wallet...');
+      // console.log('🔌 Disconnecting wallet...');
 
       // Clear wallet type preference
       await AsyncStorage.removeItem(WALLET_TYPE_KEY);
@@ -418,9 +418,9 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
       setIsConnected(false);
       setBalance(null);
 
-      console.log('✅ Wallet disconnected');
+      // console.log('✅ Wallet disconnected');
     } catch (error) {
-      console.error('❌ Failed to disconnect wallet:', error);
+      // console.error('❌ Failed to disconnect wallet:', error);
       throw error;
     }
   };
@@ -431,12 +431,12 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
   const getSigner = async (): Promise<ethers.Signer | null> => {
     try {
       if (!isConnected || !walletType) {
-        console.error('❌ No wallet connected');
+        // console.error('❌ No wallet connected');
         return null;
       }
 
       if (isLocked) {
-        console.error('❌ Wallet is locked');
+        // console.error('❌ Wallet is locked');
         return null;
       }
 
@@ -456,7 +456,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
 
       return null;
     } catch (error) {
-      console.error('❌ Failed to get signer:', error);
+      // console.error('❌ Failed to get signer:', error);
       return null;
     }
   };
@@ -486,7 +486,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
       }
       // TODO: Handle other wallet types
     } catch (error) {
-      console.error('❌ Failed to refresh balance:', error);
+      // console.error('❌ Failed to refresh balance:', error);
     }
   };
 
@@ -498,9 +498,9 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
       const provider = getProvider();
       const balance = await provider.getBalance(wallet.address);
       setBalance(balance);
-      console.log('💰 Balance:', ethers.utils.formatEther(balance), 'ETH');
+      // console.log('💰 Balance:', ethers.utils.formatEther(balance), 'ETH');
     } catch (error) {
-      console.error('❌ Failed to get balance:', error);
+      // console.error('❌ Failed to get balance:', error);
     }
   };
 
@@ -529,7 +529,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
 
         // Sign typed data using ethers
         const signature = await wallet._signTypedData(domain, types, value);
-        console.log('✍️ Signed typed data:', signature);
+        // console.log('✍️ Signed typed data:', signature);
         return signature;
       } else if (walletType === 'walletconnect') {
         // TODO: Get WalletConnect to sign typed data
@@ -541,7 +541,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
 
       throw new Error('Unknown wallet type');
     } catch (error) {
-      console.error('❌ Failed to sign typed data:', error);
+      // console.error('❌ Failed to sign typed data:', error);
       throw error;
     }
   };

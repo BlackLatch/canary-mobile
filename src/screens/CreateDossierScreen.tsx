@@ -144,12 +144,12 @@ export const CreateDossierScreen = () => {
       });
 
       if (result.didCancel) {
-        console.log('User cancelled photo picker');
+        // console.log('User cancelled photo picker');
         return;
       }
 
       if (result.errorCode) {
-        console.error('Photo picker error:', result.errorMessage);
+        // console.error('Photo picker error:', result.errorMessage);
         setErrorDialog({ visible: true, message: 'Failed to select photos' });
         return;
       }
@@ -165,7 +165,7 @@ export const CreateDossierScreen = () => {
         setUploadedFiles(prev => [...prev, ...newFiles]);
       }
     } catch (err) {
-      console.error('Error picking photos:', err);
+      // console.error('Error picking photos:', err);
       setErrorDialog({ visible: true, message: 'Failed to select photos' });
     }
   };
@@ -189,9 +189,9 @@ export const CreateDossierScreen = () => {
     } catch (err) {
       if (DocumentPicker.isCancel(err)) {
         // User cancelled the picker
-        console.log('User cancelled file picker');
+        // console.log('User cancelled file picker');
       } else {
-        console.error('Error picking files:', err);
+        // console.error('Error picking files:', err);
         setErrorDialog({ visible: true, message: 'Failed to select files' });
       }
     }
@@ -347,11 +347,11 @@ export const CreateDossierScreen = () => {
 
   // Finalize and create dossier
   const handleFinalize = () => {
-    console.log('🔵 handleFinalize called');
+    // console.log('🔵 handleFinalize called');
 
     // Validate that at least one file has been added
     if (uploadedFiles.length === 0) {
-      console.log('❌ No files uploaded');
+      // console.log('❌ No files uploaded');
       setErrorDialog({
         visible: true,
         message: 'Please add at least one file to your dossier before creating it.',
@@ -415,7 +415,7 @@ export const CreateDossierScreen = () => {
         });
       }
     } catch (error: any) {
-      console.error('❌ Create dossier error:', error);
+      // console.error('❌ Create dossier error:', error);
       setShowCreationModal(false);
       setErrorDialog({ visible: true, message: error.message || 'An unexpected error occurred' });
     }
@@ -1130,9 +1130,9 @@ export const CreateDossierScreen = () => {
                 setTermsSignature(signature);
                 setHasAcceptedTerms(true);
 
-                console.log('✅ Terms signed:', signature);
+                // console.log('✅ Terms signed:', signature);
               } catch (error) {
-                console.error('❌ Failed to sign terms:', error);
+                // console.error('❌ Failed to sign terms:', error);
                 setErrorDialog({ visible: true, message: 'Failed to sign terms. Please try again.' });
               }
             }}

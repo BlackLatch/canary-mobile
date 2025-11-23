@@ -27,10 +27,10 @@ class PinataService {
     this.jwt = PINATA_CONFIG.jwt;
     this.gateway = PINATA_CONFIG.gateway;
 
-    console.log('🟣 Pinata service initialized');
-    console.log('📍 API Key available:', !!this.apiKey);
-    console.log('📍 JWT available:', !!this.jwt);
-    console.log('📍 Gateway:', this.gateway);
+    // console.log('🟣 Pinata service initialized');
+    // console.log('📍 API Key available:', !!this.apiKey);
+    // console.log('📍 JWT available:', !!this.jwt);
+    // console.log('📍 Gateway:', this.gateway);
   }
 
   /**
@@ -41,10 +41,10 @@ class PinataService {
     filename: string = 'encrypted_file'
   ): Promise<PinataUploadResult> {
     try {
-      console.log('🟣 PINATA UPLOAD ATTEMPT');
-      console.log('📍 Target:', PINATA_API_URL);
-      console.log('- File size:', encryptedData.length, 'bytes');
-      console.log('- Filename:', filename);
+      // console.log('🟣 PINATA UPLOAD ATTEMPT');
+      // console.log('📍 Target:', PINATA_API_URL);
+      // console.log('- File size:', encryptedData.length, 'bytes');
+      // console.log('- Filename:', filename);
 
       // Check for authentication
       if (!this.jwt && !this.apiKey) {
@@ -92,7 +92,7 @@ class PinataService {
         headers['pinata_secret_api_key'] = this.apiSecret;
       }
 
-      console.log('📤 Uploading to Pinata...');
+      // console.log('📤 Uploading to Pinata...');
 
       const response = await fetch(`${PINATA_API_URL}/pinning/pinFileToIPFS`, {
         method: 'POST',
@@ -102,7 +102,7 @@ class PinataService {
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('❌ Pinata upload failed:', response.status, errorText);
+        // console.error('❌ Pinata upload failed:', response.status, errorText);
         throw new Error(`Pinata upload failed: ${response.status} - ${errorText}`);
       }
 
@@ -110,10 +110,10 @@ class PinataService {
       const ipfsHash = result.IpfsHash;
       const gatewayUrl = `${this.gateway}/ipfs/${ipfsHash}`;
 
-      console.log('🎉 PINATA UPLOAD SUCCESS!');
-      console.log('📦 IPFS Hash:', ipfsHash);
-      console.log('📦 Pin Size:', result.PinSize);
-      console.log('📦 Gateway URL:', gatewayUrl);
+      // console.log('🎉 PINATA UPLOAD SUCCESS!');
+      // console.log('📦 IPFS Hash:', ipfsHash);
+      // console.log('📦 Pin Size:', result.PinSize);
+      // console.log('📦 Gateway URL:', gatewayUrl);
 
       return {
         ipfsHash: ipfsHash,
@@ -123,7 +123,7 @@ class PinataService {
         gatewayUrl: gatewayUrl,
       };
     } catch (error) {
-      console.error('❌ Pinata upload error:', error);
+      // console.error('❌ Pinata upload error:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown Pinata error';
 
       return {
@@ -142,25 +142,25 @@ class PinataService {
    */
   async retrieveFromIPFS(ipfsHash: string): Promise<Uint8Array | null> {
     try {
-      console.log('🟣 Retrieving from Pinata gateway:', ipfsHash);
+      // console.log('🟣 Retrieving from Pinata gateway:', ipfsHash);
 
       const gatewayUrl = `${this.gateway}/ipfs/${ipfsHash}`;
-      console.log('📍 Gateway URL:', gatewayUrl);
+      // console.log('📍 Gateway URL:', gatewayUrl);
 
       const response = await fetch(gatewayUrl);
 
       if (!response.ok) {
-        console.error('❌ Failed to retrieve from Pinata:', response.status);
+        // console.error('❌ Failed to retrieve from Pinata:', response.status);
         return null;
       }
 
       const arrayBuffer = await response.arrayBuffer();
       const data = new Uint8Array(arrayBuffer);
 
-      console.log('✅ Retrieved from Pinata:', data.length, 'bytes');
+      // console.log('✅ Retrieved from Pinata:', data.length, 'bytes');
       return data;
     } catch (error) {
-      console.error('❌ Pinata retrieve error:', error);
+      // console.error('❌ Pinata retrieve error:', error);
       return null;
     }
   }
@@ -170,7 +170,7 @@ class PinataService {
    */
   async unpinFile(ipfsHash: string): Promise<boolean> {
     try {
-      console.log('🟣 Unpinning from Pinata:', ipfsHash);
+      // console.log('🟣 Unpinning from Pinata:', ipfsHash);
 
       const headers: Record<string, string> = {};
       if (this.jwt) {
@@ -186,14 +186,14 @@ class PinataService {
       });
 
       if (response.ok) {
-        console.log('✅ File unpinned from Pinata');
+        // console.log('✅ File unpinned from Pinata');
         return true;
       } else {
-        console.error('❌ Pinata unpin failed:', response.status);
+        // console.error('❌ Pinata unpin failed:', response.status);
         return false;
       }
     } catch (error) {
-      console.error('❌ Pinata unpin error:', error);
+      // console.error('❌ Pinata unpin error:', error);
       return false;
     }
   }
@@ -203,7 +203,7 @@ class PinataService {
    */
   async testConnection(): Promise<boolean> {
     try {
-      console.log('🟣 Testing Pinata connection...');
+      // console.log('🟣 Testing Pinata connection...');
 
       const headers: Record<string, string> = {};
       if (this.jwt) {
@@ -220,14 +220,14 @@ class PinataService {
 
       if (response.ok) {
         const result = await response.json();
-        console.log('✅ Pinata connection successful:', result.message);
+        // console.log('✅ Pinata connection successful:', result.message);
         return true;
       } else {
-        console.error('❌ Pinata connection failed:', response.status);
+        // console.error('❌ Pinata connection failed:', response.status);
         return false;
       }
     } catch (error) {
-      console.error('❌ Pinata connection error:', error);
+      // console.error('❌ Pinata connection error:', error);
       return false;
     }
   }

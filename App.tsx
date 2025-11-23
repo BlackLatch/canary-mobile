@@ -11,10 +11,10 @@ import { WalletProvider } from './src/contexts/WalletContext';
 import { DossierProvider } from './src/contexts/DossierContext';
 import { AuthenticatedApp } from './src/components/AuthenticatedApp';
 
-console.log('App.tsx: Starting to load');
+// console.log('App.tsx: Starting to load');
 
 function AppContent() {
-  console.log('App: Rendering');
+  // console.log('App: Rendering');
   const { theme } = useTheme();
 
   return (
@@ -38,6 +38,6 @@ function App() {
   );
 }
 
-console.log('App.tsx: Finished loading');
+// console.log('App.tsx: Finished loading');
 
 export default App;

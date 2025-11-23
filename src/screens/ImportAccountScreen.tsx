@@ -105,7 +105,7 @@ export const ImportAccountScreen = () => {
         });
       }
     } catch (error: any) {
-      console.error('Import validation failed:', error);
+      // console.error('Import validation failed:', error);
       setError(error.message || 'Failed to validate account');
     } finally {
       setIsLoading(false);

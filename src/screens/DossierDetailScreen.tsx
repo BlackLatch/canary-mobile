@@ -256,7 +256,7 @@ export const DossierDetailScreen = () => {
     }
 
     setIsDecrypting(true);
-    console.log('🔓 Starting decryption process...');
+    // console.log('🔓 Starting decryption process...');
 
     try {
       const downloadDir = Platform.OS === 'ios'
@@ -267,7 +267,7 @@ export const DossierDetailScreen = () => {
 
       // Create dossier directory if it doesn't exist
       await RNFS.mkdir(dossierDir, { NSURLIsExcludedFromBackupKey: false });
-      console.log('📁 Created directory:', dossierDir);
+      // console.log('📁 Created directory:', dossierDir);
 
       let successCount = 0;
       let failCount = 0;
@@ -283,7 +283,7 @@ export const DossierDetailScreen = () => {
         }
 
         try {
-          console.log(`📥 Downloading file ${i + 1}/${dossier.encryptedFileHashes.length} from IPFS...`);
+          // console.log(`📥 Downloading file ${i + 1}/${dossier.encryptedFileHashes.length} from IPFS...`);
 
           // Download encrypted file from IPFS
           const encryptedData = await retrieveFromPinata(ipfsHash);
@@ -292,21 +292,21 @@ export const DossierDetailScreen = () => {
             throw new Error('Failed to download file from IPFS');
           }
 
-          console.log(`✅ Downloaded ${encryptedData.length} bytes from IPFS`);
+          // console.log(`✅ Downloaded ${encryptedData.length} bytes from IPFS`);
 
           // Decrypt the file using TACo
-          console.log('🔓 Attempting decryption...');
+          // console.log('🔓 Attempting decryption...');
           const decryptedData = await decryptFile(encryptedData);
-          console.log(`✅ Decryption successful! ${decryptedData.length} bytes`);
+          // console.log(`✅ Decryption successful! ${decryptedData.length} bytes`);
 
           // Save decrypted file
           const decryptedPath = `${dossierDir}/file_${i + 1}_decrypted.bin`;
           await RNFS.writeFile(decryptedPath, Buffer.from(decryptedData).toString('base64'), 'base64');
 
-          console.log(`💾 Saved decrypted file to: ${decryptedPath}`);
+          // console.log(`💾 Saved decrypted file to: ${decryptedPath}`);
           successCount++;
         } catch (error: any) {
-          console.error(`❌ Failed to process file ${i + 1}:`, error);
+          // console.error(`❌ Failed to process file ${i + 1}:`, error);
           errors.push(`File ${i + 1}: ${error.message || 'Unknown error'}`);
           failCount++;
         }
@@ -324,7 +324,7 @@ export const DossierDetailScreen = () => {
         showError(`Failed to download files. ${errors.slice(0, 2).join('\n')}`);
       }
     } catch (error: any) {
-      console.error('❌ Decryption process failed:', error);
+      // console.error('❌ Decryption process failed:', error);
       showError(error.message || 'Failed to download and decrypt files');
     } finally {
       setIsDecrypting(false);
